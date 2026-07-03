@@ -1,0 +1,30 @@
+name: (Reusable) Detect changed stacks
+
+on:
+  workflow_call:
+    inputs:
+      base_sha:
+        description: Commit SHA to diff against (PR base SHA, or github.event.before on push).
+        required: true
+        type: string
+    outputs:
+      tenants:
+        description: JSON array of {env, tenant} for changed tenant stacks.
+        value: ${{ jobs.detect.outputs.tenants }}
+      shared:
+        description: JSON array of environments whose shared stack changed.
+        value: ${{ jobs.detect.outputs.shared }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      tenants: ${{ steps.changes.outputs.tenants }}
+      shared: ${{ steps.changes.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: changes
+        run: ./scripts/detect-changes.sh "${{ inputs.base_sha }}"

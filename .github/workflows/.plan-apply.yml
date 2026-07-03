@@ -1,0 +1,72 @@
+name: (Reusable) Terraform plan/apply
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        description: Stack directory, e.g. stacks/tenant or stacks/shared.
+        required: true
+        type: string
+      target_environment:
+        description: tools | dev | test | prod - selects the GitHub Environment (UAMI + Bastion/jumpbox variables, and approval gates for test/prod).
+        required: true
+        type: string
+      backend_config_args:
+        description: Space-separated -backend-config="key=value" arguments.
+        required: true
+        type: string
+      var_file_args:
+        description: Space-separated -var-file=... arguments.
+        required: true
+        type: string
+      apply:
+        description: If true, runs terraform apply after a successful plan.
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_environment }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7"
+          terraform_wrapper: false
+
+      - name: Open Bastion proxy to tools jumpbox
+        run: ${{ github.workspace }}/scripts/bastion-proxy.sh start
+        env:
+          BASTION_RESOURCE_ID: ${{ vars.BASTION_RESOURCE_ID }}
+          JUMPBOX_RESOURCE_ID: ${{ vars.JUMPBOX_RESOURCE_ID }}
+
+      - name: terraform init
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform init -input=false ${{ inputs.backend_config_args }}
+
+      - name: terraform plan
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          terraform plan -input=false -out=tfplan ${{ inputs.var_file_args }}
+          terraform show -no-color tfplan >> "$GITHUB_STEP_SUMMARY"
+
+      - name: terraform apply
+        if: inputs.apply
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Close Bastion proxy
+        if: always()
+        run: ${{ github.workspace }}/scripts/bastion-proxy.sh stop

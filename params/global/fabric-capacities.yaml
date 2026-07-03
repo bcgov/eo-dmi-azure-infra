@@ -1,0 +1,37 @@
+# Fabric capacity registry, consumed by stacks/shared (filters by home_env
+# and scope != "dedicated"). "dedicated" entries are documentation only -
+# those capacities are created directly by stacks/tenant via
+# create_dedicated_capacity = true in the tenant's tenant.tfvars.
+#
+# Keys here are logical names, not Azure resource names - stacks/shared
+# builds the actual Azure name as fc-<ministry_code>-<program_code>-<key>
+# (see docs/platform-guide.md "Naming conventions"). Reference a key by its
+# logical name in a tenant's fabric_capacity_name (tenant.tfvars).
+#
+# scope:
+#   shared-cross-env  - one capacity, usable by tenants in any environment.
+#                        Typically homed in tools.
+#   shared-env        - one capacity per environment, usable by all tenants
+#                        in that environment (or) by specific tenants in that environment. Typically homed in the environment.
+#                         For a non-prod capacity that is shared between dev and test, use scope: shared-env and home_env: dev. 
+#                          For a prod capacity that is shared between prod and pre-prod, use scope: shared-env and home_env: prod.
+#   dedicated         - homed in the tenant's own platform RG, created by
+#                        stacks/tenant, not listed here.
+
+
+capacities:
+  shared-cross-env:
+    scope: shared-cross-env
+    home_env: tools
+    sku: F2
+    administrator_members:
+      - "Krishna.Rajendharan@gov.bc.ca" # TODO: replace with team Entra group object ID once group is set up
+
+
+  # Example additional environment-scoped shared capacity - add as needed:
+  # shared-dev:
+  #   scope: shared-env
+  #   home_env: dev
+  #   sku: F8
+  #   administrator_members:
+  #     - "<TODO-fabric-admin-group-upn-or-object-id>"

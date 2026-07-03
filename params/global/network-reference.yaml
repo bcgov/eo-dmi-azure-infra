@@ -1,0 +1,36 @@
+# Existing network resources managed by the BC Gov platform team.
+# Nothing in this file is created by this repo - it is a reference lookup
+# used to populate pe_subnet_id / private_dns_zone_ids in each
+# params/<env>/shared.tfvars.
+#
+# All tenants in a given environment share the same PE subnet, so this file
+# does not change as tenants are onboarded.
+#
+# private_dns_zone_ids: leave empty — ALZ DINE policy auto-registers private
+# endpoints at a management group level above b9cee3. Confirmed working in
+# tools and dev with empty list.
+
+environments:
+  tools:
+    spoke_resource_group: "b9cee3-tools-networking"
+    spoke_vnet_name: "b9cee3-tools-vwan-spoke"
+    pe_subnet_id: "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/resourceGroups/b9cee3-tools-networking/providers/Microsoft.Network/virtualNetworks/b9cee3-tools-vwan-spoke/subnets/privateendpoints-subnet"
+    private_dns_zone_ids: []
+
+  dev:
+    spoke_resource_group: "b9cee3-dev-networking"
+    spoke_vnet_name: "b9cee3-dev-vwan-spoke"
+    pe_subnet_id: "/subscriptions/5206cf0e-3bf0-4224-8b2c-1acd3cfa08f3/resourceGroups/b9cee3-dev-networking/providers/Microsoft.Network/virtualNetworks/b9cee3-dev-vwan-spoke/subnets/arch-dev-dap-etl-subnet"
+    private_dns_zone_ids: []
+
+  test:
+    spoke_resource_group: "b9cee3-test-networking"
+    spoke_vnet_name: "b9cee3-test-vwan-spoke"
+    pe_subnet_id: "/subscriptions/8e303ae8-ce14-4e85-9dc3-9d767a42dec8/resourceGroups/b9cee3-test-networking/providers/Microsoft.Network/virtualNetworks/b9cee3-test-vwan-spoke/subnets/privateendpoints-subnet"
+    private_dns_zone_ids: []
+
+  prod:
+    spoke_resource_group: "b9cee3-prod-networking"
+    spoke_vnet_name: "b9cee3-prod-vwan-spoke"
+    pe_subnet_id: "/subscriptions/77336ca9-272d-4cad-9d76-02f51399d697/resourceGroups/b9cee3-prod-networking/providers/Microsoft.Network/virtualNetworks/b9cee3-prod-vwan-spoke/subnets/privateendpoints-subnet"
+    private_dns_zone_ids: []

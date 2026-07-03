@@ -1,0 +1,29 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Local var files that may contain secrets
+*.auto.tfvars
+*.local.tfvars
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
+
+# Scratchpad/notes
+scratch.md
+scratch-macos.md
+
+# Claude/AI tooling (local only)
+.claude/

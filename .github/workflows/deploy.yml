@@ -1,0 +1,67 @@
+name: Deploy
+
+# Applies changes on merge to main. The environment a stack is applied to is
+# determined entirely by which params/<env>/... path changed - promoting a
+# tenant from dev to test to prod is done by copying its tenant.tfvars into
+# params/test/tenants/<tenant>/ and params/prod/tenants/<tenant>/ in
+# follow-up PRs.
+#
+# Approval gates for test/prod come from GitHub Environment protection rules
+# (required reviewers) configured on the "test" and "prod" environments - the
+# job below pauses for approval before running when those rules apply.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  detect-changes:
+    uses: ./.github/workflows/.detect-changes.yml
+    with:
+      base_sha: ${{ github.event.before }}
+
+  apply-tenants:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.tenants != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        item: ${{ fromJson(needs.detect-changes.outputs.tenants) }}
+    uses: ./.github/workflows/.plan-apply.yml
+    with:
+      working_directory: stacks/tenant
+      target_environment: ${{ matrix.item.env }}
+      apply: true
+      var_file_args: >-
+        -var-file=../../params/${{ matrix.item.env }}/shared.tfvars
+        -var-file=../../params/${{ matrix.item.env }}/tenants/${{ matrix.item.tenant }}/tenant.tfvars
+      backend_config_args: >-
+        -backend-config=resource_group_name=rg-${{ vars.MINISTRY_CODE }}-${{ vars.PROGRAM_CODE }}-tfstate-${{ matrix.item.env }}
+        -backend-config=storage_account_name=st${{ vars.MINISTRY_CODE }}${{ vars.PROGRAM_CODE }}${{ matrix.item.env }}tfstate
+        -backend-config=container_name=tfstate
+        -backend-config=key=tenant/${{ matrix.item.tenant }}.tfstate
+        -backend-config=use_azuread_auth=true
+
+  apply-shared:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shared != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        env: ${{ fromJson(needs.detect-changes.outputs.shared) }}
+    uses: ./.github/workflows/.plan-apply.yml
+    with:
+      working_directory: stacks/shared
+      target_environment: ${{ matrix.env }}
+      apply: true
+      var_file_args: -var-file=../../params/${{ matrix.env }}/shared.tfvars
+      backend_config_args: >-
+        -backend-config=resource_group_name=rg-${{ vars.MINISTRY_CODE }}-${{ vars.PROGRAM_CODE }}-tfstate-${{ matrix.env }}
+        -backend-config=storage_account_name=st${{ vars.MINISTRY_CODE }}${{ vars.PROGRAM_CODE }}${{ matrix.env }}tfstate
+        -backend-config=container_name=tfstate
+        -backend-config=key=shared/${{ matrix.env }}.tfstate
+        -backend-config=use_azuread_auth=true

@@ -40,3 +40,5 @@ fabric_capacity_name      = "shared-cross-env"
 tags = {
   tenant = "tenant-tmp"
 }
+
+# ci test

@@ -72,6 +72,13 @@ case "$ACTION" in
       echo "ALL_PROXY=socks5h://127.0.0.1:${SOCKS_PORT}"
       echo "HTTPS_PROXY=socks5h://127.0.0.1:${SOCKS_PORT}"
       echo "HTTP_PROXY=socks5h://127.0.0.1:${SOCKS_PORT}"
+      # Bypass the SOCKS proxy for endpoints that must be reached directly.
+      # The proxy exists only for Azure Storage private endpoints (Terraform state).
+      # Everything else — GitHub OIDC token requests (needed by ARM_USE_OIDC=true),
+      # Azure AAD, and the management plane — is a public endpoint and must not be
+      # routed through the tunnel. Go's net/http does not recognise the socks5h
+      # scheme and would try to DNS-resolve "socks5h" as a hostname for these hosts.
+      echo "NO_PROXY=localhost,127.0.0.1,*.actions.githubusercontent.com,token.actions.githubusercontent.com,login.microsoftonline.com,management.azure.com"
     } >> "$GITHUB_ENV"
     ;;
 
@@ -79,6 +86,11 @@ case "$ACTION" in
     [ -f "$PROXY_PID_FILE" ] && kill "$(cat "$PROXY_PID_FILE")" 2>/dev/null || true
     [ -f "$TUNNEL_PID_FILE" ] && kill "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null || true
     rm -f "$PROXY_PID_FILE" "$TUNNEL_PID_FILE"
+    # Clear proxy vars so post-job steps (azure/login cleanup, actions/checkout)
+    # don't fail trying to reach public endpoints through a now-dead tunnel.
+    if [ -n "${GITHUB_ENV:-}" ]; then
+      printf 'ALL_PROXY=\nHTTPS_PROXY=\nHTTP_PROXY=\nNO_PROXY=\n' >> "$GITHUB_ENV"
+    fi
     ;;
 
   *)

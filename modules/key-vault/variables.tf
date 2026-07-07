@@ -46,7 +46,7 @@ variable "rbac_assignments" {
   description = "Role assignments to grant on this Key Vault, e.g. tenant admins getting \"Key Vault Administrator\"."
   type = list(object({
     role_definition_name = string
-    principal_id          = string
+    principal_id         = string
   }))
   default = []
 }

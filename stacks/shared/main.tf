@@ -18,10 +18,10 @@ module "fabric_capacity" {
   # each.key is the logical capacity name from params/global/fabric-capacities.yaml
   # (e.g. "shared-cross-env") - the Azure resource name strips hyphens since Fabric
   # capacity names allow lowercase alphanumeric only (no hyphens).
-  name                   = replace("fc${var.ministry_code}${var.program_code}${each.key}", "-", "")
+  name                  = replace("fc${var.ministry_code}${var.program_code}${each.key}", "-", "")
   resource_group_name   = azurerm_resource_group.shared[0].name
-  location               = var.location
-  sku_name               = each.value.sku
+  location              = var.location
+  sku_name              = each.value.sku
   administrator_members = each.value.administrator_members
-  tags                   = var.tags
+  tags                  = var.tags
 }

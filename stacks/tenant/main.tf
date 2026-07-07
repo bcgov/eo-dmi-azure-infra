@@ -1,12 +1,12 @@
 module "platform_rg" {
   source = "../../modules/tenant-platform-rg"
 
-  ministry_code        = var.ministry_code
-  tenant_name          = var.tenant_name
-  tenant_program_name  = var.tenant_program_name
-  environment          = var.environment
-  location             = var.location
-  tags                 = var.tags
+  ministry_code       = var.ministry_code
+  tenant_name         = var.tenant_name
+  tenant_program_name = var.tenant_program_name
+  environment         = var.environment
+  location            = var.location
+  tags                = var.tags
 }
 
 module "key_vault" {
@@ -37,13 +37,13 @@ module "key_vault_private_endpoint" {
 module "workspace_rg" {
   source = "../../modules/workspace-rg"
 
-  ministry_code                     = var.ministry_code
-  tenant_name                       = var.tenant_name
-  tenant_program_name               = var.tenant_program_name
-  environment                       = var.environment
-  location                          = var.location
-  workspace_owners_group_object_id  = var.workspace_owners_group_object_id
-  tags                               = var.tags
+  ministry_code                    = var.ministry_code
+  tenant_name                      = var.tenant_name
+  tenant_program_name              = var.tenant_program_name
+  environment                      = var.environment
+  location                         = var.location
+  workspace_owners_group_object_id = var.workspace_owners_group_object_id
+  tags                             = var.tags
 }
 
 # Grants tenant team members Virtual Machine User Login on the shared jumpbox so
@@ -67,10 +67,10 @@ module "dedicated_fabric_capacity" {
   source = "../../modules/fabric-capacity"
 
   # Fabric capacity names allow lowercase alphanumeric only (no hyphens).
-  name                   = replace("fc${var.ministry_code}${local.tenant_segment}${var.environment}", "-", "")
+  name                  = replace("fc${var.ministry_code}${local.tenant_segment}${var.environment}", "-", "")
   resource_group_name   = module.platform_rg.name
-  location               = var.location
-  sku_name               = var.dedicated_capacity_sku
+  location              = var.location
+  sku_name              = var.dedicated_capacity_sku
   administrator_members = var.fabric_capacity_admins
-  tags                   = var.tags
+  tags                  = var.tags
 }

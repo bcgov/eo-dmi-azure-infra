@@ -30,7 +30,7 @@ workspace_owners_group_object_id = "acc400f6-00af-4401-8720-9fa3770b1845"
 kv_rbac_assignments = [
   {
     role_definition_name = "Key Vault Secrets Officer"
-    principal_id          = "acc400f6-00af-4401-8720-9fa3770b1845" # TODO: replace with team Entra group object ID
+    principal_id         = "acc400f6-00af-4401-8720-9fa3770b1845" # TODO: replace with team Entra group object ID
   }
 ]
 

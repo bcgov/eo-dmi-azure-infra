@@ -70,7 +70,7 @@ variable "kv_rbac_assignments" {
   description = "Role assignments to grant on the tenant's Key Vault, e.g. the tenant team getting \"Key Vault Administrator\"."
   type = list(object({
     role_definition_name = string
-    principal_id          = string
+    principal_id         = string
   }))
   default = []
 }

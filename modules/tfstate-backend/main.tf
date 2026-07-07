@@ -40,12 +40,12 @@ resource "azurerm_storage_container" "tfstate" {
 module "blob_private_endpoint" {
   source = "../private-endpoint"
 
-  name                = "pe-${var.storage_account_name}-blob"
-  resource_group_name = azurerm_resource_group.tfstate.name
-  location            = var.location
-  subnet_id           = var.subnet_id
-  target_resource_id  = azurerm_storage_account.tfstate.id
-  subresource_names   = ["blob"]
+  name                 = "pe-${var.storage_account_name}-blob"
+  resource_group_name  = azurerm_resource_group.tfstate.name
+  location             = var.location
+  subnet_id            = var.subnet_id
+  target_resource_id   = azurerm_storage_account.tfstate.id
+  subresource_names    = ["blob"]
   private_dns_zone_ids = var.private_dns_zone_ids
-  tags                = var.tags
+  tags                 = var.tags
 }

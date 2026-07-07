@@ -1,6 +1,6 @@
 environment     = "test"
-ministry_code   = "citz"   # e.g. "citz" - see docs/platform-guide.md "Naming conventions"
-program_code    = "dap"    # e.g. "dap"
+ministry_code   = "citz" # e.g. "citz" - see docs/platform-guide.md "Naming conventions"
+program_code    = "dap"  # e.g. "dap"
 subscription_id = "8e303ae8-ce14-4e85-9dc3-9d767a42dec8"
 location        = "canadacentral"
 azure_tenant_id = "6fdb5200-3d0d-4a8a-b036-d3685e359adc"

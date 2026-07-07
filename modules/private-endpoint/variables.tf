@@ -36,8 +36,8 @@ variable "private_dns_zone_ids" {
     endpoints in the correct privatelink zone for this subscription -
     confirm with the platform team before populating this.
   EOT
-  type    = list(string)
-  default = []
+  type        = list(string)
+  default     = []
 }
 
 variable "tags" {

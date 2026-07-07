@@ -1,6 +1,6 @@
 environment     = "prod"
-ministry_code   = "citz"   # e.g. "citz" - see docs/platform-guide.md "Naming conventions". Must match params/bootstrap/identity.tfvars.
-program_code    = "dap"    # e.g. "pmt"
+ministry_code   = "citz" # e.g. "citz" - see docs/platform-guide.md "Naming conventions". Must match params/bootstrap/identity.tfvars.
+program_code    = "dap"  # e.g. "pmt"
 subscription_id = "77336ca9-272d-4cad-9d76-02f51399d697"
 location        = "canadacentral"
 

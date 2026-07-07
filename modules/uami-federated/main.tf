@@ -13,7 +13,7 @@ resource "azurerm_federated_identity_credential" "this" {
   resource_group_name = var.resource_group_name
   parent_id           = azurerm_user_assigned_identity.this.id
 
-  issuer  = "https://token.actions.githubusercontent.com"
-  subject = each.value.subject
+  issuer   = "https://token.actions.githubusercontent.com"
+  subject  = each.value.subject
   audience = ["api://AzureADTokenExchange"]
 }

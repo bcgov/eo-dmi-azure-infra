@@ -6,6 +6,8 @@ resource "azurerm_resource_group" "tfstate" {
 }
 
 resource "azurerm_storage_account" "tfstate" {
+  #checkov:skip=CKV_AZURE_33:Queue service is not used by this storage account (Terraform state is blob-only); queue logging is not applicable
+  #checkov:skip=CKV2_AZURE_1:Customer-managed key encryption for Terraform state would create a circular dependency — the key vault holding the key is itself managed by this state
   name                = var.storage_account_name
   resource_group_name = azurerm_resource_group.tfstate.name
   location            = var.location
@@ -21,6 +23,11 @@ resource "azurerm_storage_account" "tfstate" {
 
   blob_properties {
     versioning_enabled = true
+
+    # CKV2_AZURE_38: retain deleted blobs for 7 days to allow recovery
+    delete_retention_policy {
+      days = 7
+    }
   }
 
   network_rules {
@@ -32,6 +39,7 @@ resource "azurerm_storage_account" "tfstate" {
 }
 
 resource "azurerm_storage_container" "tfstate" {
+  #checkov:skip=CKV2_AZURE_21:Blob request logging requires azurerm_storage_management_policy; not configurable via azurerm_storage_account blob_properties in provider v4
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.tfstate.id
   container_access_type = "private"

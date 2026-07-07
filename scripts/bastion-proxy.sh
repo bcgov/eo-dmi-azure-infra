@@ -24,11 +24,15 @@ set -euo pipefail
 
 ACTION="${1:?usage: bastion-proxy.sh start|stop}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 TUNNEL_PORT="${TUNNEL_PORT:-2222}"
 SOCKS_PORT="${SOCKS_PORT:-8228}"
+BRIDGE_PORT="${BRIDGE_PORT:-8229}"
 PID_DIR="${RUNNER_TEMP:-/tmp}"
 TUNNEL_PID_FILE="${PID_DIR}/bastion-tunnel.pid"
 PROXY_PID_FILE="${PID_DIR}/ssh-socks-proxy.pid"
+BRIDGE_PID_FILE="${PID_DIR}/socks5h-bridge.pid"
 
 case "$ACTION" in
   start)
@@ -68,24 +72,46 @@ case "$ACTION" in
 
     sleep 5
 
+    # Start the HTTP CONNECT → SOCKS5h bridge.
+    #
+    # Go's net/http (used by Terraform's Azure backend) understands http:// and
+    # socks5:// proxy schemes but NOT socks5h://. With HTTPS_PROXY=socks5h://...
+    # Go tries to DNS-resolve "socks5h" as a hostname and fails. We need remote
+    # DNS (socks5h behaviour) because the Azure Storage private endpoint only
+    # resolves to a private IP from within the Azure VNet — the GitHub runner
+    # can't resolve it locally. The bridge accepts HTTP CONNECT (which Go CAN
+    # use) and forwards each connection into the SOCKS5 proxy using ATYP=0x03
+    # (domain name), so the jumpbox performs DNS resolution inside the VNet.
+    python3 "${SCRIPT_DIR}/socks5h-bridge.py" "$BRIDGE_PORT" 127.0.0.1 "$SOCKS_PORT" \
+      >"${PID_DIR}/socks5h-bridge.log" 2>&1 &
+    echo $! > "$BRIDGE_PID_FILE"
+    sleep 1  # let bridge bind
+
     {
+      # ALL_PROXY (socks5h): for tools that natively support the socks5h scheme
+      # (curl, az CLI) so they also get remote DNS resolution.
       echo "ALL_PROXY=socks5h://127.0.0.1:${SOCKS_PORT}"
-      echo "HTTPS_PROXY=socks5h://127.0.0.1:${SOCKS_PORT}"
-      echo "HTTP_PROXY=socks5h://127.0.0.1:${SOCKS_PORT}"
-      # Bypass the SOCKS proxy for endpoints that must be reached directly.
-      # The proxy exists only for Azure Storage private endpoints (Terraform state).
-      # Everything else — GitHub OIDC token requests (needed by ARM_USE_OIDC=true),
-      # Azure AAD, and the management plane — is a public endpoint and must not be
-      # routed through the tunnel. Go's net/http does not recognise the socks5h
-      # scheme and would try to DNS-resolve "socks5h" as a hostname for these hosts.
+      # HTTPS_PROXY / HTTP_PROXY: set to the HTTP CONNECT bridge so that Go-based
+      # tools (Terraform, azurerm provider) use a scheme they understand. The
+      # bridge internally forwards using SOCKS5 with remote DNS (ATYP=0x03),
+      # giving the same socks5h behaviour without requiring Go to parse socks5h://.
+      echo "HTTPS_PROXY=http://127.0.0.1:${BRIDGE_PORT}"
+      echo "HTTP_PROXY=http://127.0.0.1:${BRIDGE_PORT}"
+      # Bypass the proxy entirely for public endpoints that must be reached directly:
+      # - GitHub OIDC token endpoint (ARM_USE_OIDC=true fetches a JWT from here)
+      # - Azure AAD token endpoint (azure/login OIDC exchange)
+      # - Azure management plane (ARM API calls; public, no private endpoint)
+      # These are all reachable from the runner without a tunnel. Routing them
+      # through the bridge is harmless but adds latency and complexity.
       echo "NO_PROXY=localhost,127.0.0.1,*.actions.githubusercontent.com,token.actions.githubusercontent.com,login.microsoftonline.com,management.azure.com"
     } >> "$GITHUB_ENV"
     ;;
 
   stop)
-    [ -f "$PROXY_PID_FILE" ] && kill "$(cat "$PROXY_PID_FILE")" 2>/dev/null || true
-    [ -f "$TUNNEL_PID_FILE" ] && kill "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null || true
-    rm -f "$PROXY_PID_FILE" "$TUNNEL_PID_FILE"
+    [ -f "$BRIDGE_PID_FILE" ]  && kill "$(cat "$BRIDGE_PID_FILE")"  2>/dev/null || true
+    [ -f "$PROXY_PID_FILE" ]   && kill "$(cat "$PROXY_PID_FILE")"   2>/dev/null || true
+    [ -f "$TUNNEL_PID_FILE" ]  && kill "$(cat "$TUNNEL_PID_FILE")"  2>/dev/null || true
+    rm -f "$BRIDGE_PID_FILE" "$PROXY_PID_FILE" "$TUNNEL_PID_FILE"
     # Clear proxy vars so post-job steps (azure/login cleanup, actions/checkout)
     # don't fail trying to reach public endpoints through a now-dead tunnel.
     if [ -n "${GITHUB_ENV:-}" ]; then

@@ -11,3 +11,14 @@ plugin "azurerm" {
   version = "0.27.0"
   source  = "github.com/terraform-linters/tflint-ruleset-azurerm"
 }
+
+# Modules intentionally omit required_version / required_providers — callers
+# (stacks) own those constraints and modules inherit them. Disabling these two
+# rules avoids 14 spurious warnings on every CI run.
+rule "terraform_required_version" {
+  enabled = false
+}
+
+rule "terraform_required_providers" {
+  enabled = false
+}

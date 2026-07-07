@@ -67,6 +67,16 @@ jobs:
       # cannot request a JWT to exchange for an Azure access token.
       id-token: write
       contents: read
+    # The azurerm provider authenticates via OIDC directly — it does NOT use the
+    # Azure CLI token that azure/login sets up (CLI auth is only for user accounts,
+    # not Service Principals). These ARM_* vars tell the provider to use OIDC and
+    # where to fetch the token from (GitHub's OIDC endpoint, available because
+    # id-token: write is granted above).
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
 

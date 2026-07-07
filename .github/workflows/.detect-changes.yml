@@ -1,9 +1,27 @@
 name: (Reusable) Detect changed stacks
 
+# Reusable workflow called by pr-validate.yml (on pull_request) and
+# deploy.yml (on push to main). It runs scripts/detect-changes.sh, which
+# diffs the commit range and decides which stacks need to be planned/applied.
+#
+# Outputs:
+#   tenants — JSON array of {env, tenant} objects, e.g.
+#             [{"env":"dev","tenant":"pmt"},{"env":"test","tenant":"pmt"}]
+#             Only tenant stacks whose params files changed, or ALL tenant
+#             stacks when modules/ or stacks/tenant/ itself changed.
+#   shared  — JSON array of environment names, e.g. ["dev","tools"]
+#             Only environments whose shared.tfvars changed, or ALL envs when
+#             modules/ or stacks/shared/ changed.
+#
+# The caller converts these outputs into GitHub Actions matrix jobs, so only
+# the stacks that actually changed are planned/applied — not everything.
+
 on:
   workflow_call:
     inputs:
       base_sha:
+        # For pull_request events: github.event.pull_request.base.sha
+        # For push events: github.event.before
         description: Commit SHA to diff against (PR base SHA, or github.event.before on push).
         required: true
         type: string
@@ -24,7 +42,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Full git history is required so git diff can reach base_sha.
+          # The default shallow clone (fetch-depth: 1) only has HEAD and would
+          # fail with "unknown revision" when diffing against an older commit.
           fetch-depth: 0
 
       - id: changes
+        # The script writes tenants=<json> and shared=<json> to $GITHUB_OUTPUT,
+        # which GitHub Actions surfaces as job outputs above.
         run: ./scripts/detect-changes.sh "${{ inputs.base_sha }}"

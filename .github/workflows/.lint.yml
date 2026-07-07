@@ -58,10 +58,16 @@ jobs:
 
       # tflint --init downloads provider-specific rules (e.g. azurerm plugin).
       # --recursive walks all subdirectories.
+      # --config is passed as an absolute path so that tflint's recursive
+      # sub-runs (which each change working directory to the module being linted)
+      # still find the root .tflint.hcl. Without this, subdirectory runs fall
+      # back to default config (all rules enabled), ignoring rule disabling in
+      # the root file — which is why rule {} blocks in .tflint.hcl were being
+      # ignored for modules/*.
       - name: tflint
         run: |
           tflint --init
-          tflint --recursive
+          tflint --recursive --config "$(pwd)/.tflint.hcl"
 
       # Checkov scans for misconfigurations against a large library of policies
       # (storage accounts with public access, key vaults without soft-delete, etc.).

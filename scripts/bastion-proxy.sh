@@ -87,6 +87,27 @@ case "$ACTION" in
     echo $! > "$BRIDGE_PID_FILE"
     sleep 1  # let bridge bind
 
+    # Quick sanity check: verify the full proxy chain is functional before we
+    # set HTTPS_PROXY and let Terraform run. Tests two layers:
+    #   1. SSH SOCKS5 proxy directly (bypasses the bridge)
+    #   2. HTTP CONNECT bridge (the path Terraform uses)
+    # api.ipify.org is a public service that returns the caller's outbound IP —
+    # through the tunnel this should be the jumpbox's IP, proving end-to-end
+    # routing. It is NOT in NO_PROXY so it always routes through the proxy.
+    echo "--- proxy chain test (layer 1: SSH SOCKS5 direct) ---"
+    curl -s --socks5-hostname "127.0.0.1:${SOCKS_PORT}" \
+      --connect-timeout 15 --max-time 20 \
+      "https://api.ipify.org?format=text" \
+      2>&1 && echo "" || echo "socks5 direct test failed (exit $?)"
+    echo "--- proxy chain test (layer 2: HTTP CONNECT bridge) ---"
+    curl -s --proxy "http://127.0.0.1:${BRIDGE_PORT}" \
+      --connect-timeout 15 --max-time 20 \
+      "https://api.ipify.org?format=text" \
+      2>&1 && echo "" || echo "bridge test failed (exit $?)"
+    echo "--- bridge log ---"
+    cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
+    echo "--- end proxy chain test ---"
+
     {
       # ALL_PROXY (socks5h): for tools that natively support the socks5h scheme
       # (curl, az CLI) so they also get remote DNS resolution.
@@ -108,6 +129,9 @@ case "$ACTION" in
     ;;
 
   stop)
+    echo "--- bridge log (full session) ---"
+    cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
+    echo "--- end bridge log ---"
     [ -f "$BRIDGE_PID_FILE" ]  && kill "$(cat "$BRIDGE_PID_FILE")"  2>/dev/null || true
     [ -f "$PROXY_PID_FILE" ]   && kill "$(cat "$PROXY_PID_FILE")"   2>/dev/null || true
     [ -f "$TUNNEL_PID_FILE" ]  && kill "$(cat "$TUNNEL_PID_FILE")"  2>/dev/null || true

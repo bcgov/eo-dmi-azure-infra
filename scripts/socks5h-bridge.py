@@ -40,6 +40,26 @@ SOCKS_HOST  = sys.argv[2]       if len(sys.argv) > 2 else "127.0.0.1"
 SOCKS_PORT  = int(sys.argv[3])  if len(sys.argv) > 3 else 8228
 
 
+def recv_exact(s: socket.socket, n: int) -> bytes:
+    """
+    Read exactly n bytes from s, looping over partial reads.
+
+    socket.recv(n) may return fewer than n bytes — e.g. when a TCP segment
+    arrives split across two packets.  If we don't read all n bytes before
+    handing the socket to the relay, the leftover bytes corrupt the subsequent
+    TLS handshake and Go sees an 'unexpected EOF'.
+    """
+    buf = b""
+    while len(buf) < n:
+        chunk = s.recv(n - len(buf))
+        if not chunk:
+            raise RuntimeError(
+                f"Connection closed after {len(buf)}/{n} bytes"
+            )
+        buf += chunk
+    return buf
+
+
 def socks5h_connect(host: str, port: int) -> socket.socket:
     """
     Open a TCP connection to host:port through the SOCKS5 proxy, passing the
@@ -52,7 +72,7 @@ def socks5h_connect(host: str, port: int) -> socket.socket:
     # --- SOCKS5 greeting ---
     # Client hello: VER=5, NMETHODS=1, METHOD=0x00 (no authentication)
     s.sendall(b"\x05\x01\x00")
-    resp = s.recv(2)
+    resp = recv_exact(s, 2)
     if resp != b"\x05\x00":
         raise RuntimeError(f"SOCKS5 auth negotiation failed: {resp!r}")
 
@@ -70,10 +90,9 @@ def socks5h_connect(host: str, port: int) -> socket.socket:
     s.sendall(request)
 
     # --- SOCKS5 CONNECT response ---
-    # VER, REP, RSV, ATYP  (4 bytes)
-    resp = s.recv(4)
-    if len(resp) < 4:
-        raise RuntimeError(f"SOCKS5 short response: {resp!r}")
+    # VER, REP, RSV, ATYP  (4 bytes) — must be read exactly to avoid
+    # leaving bytes in the buffer that corrupt the subsequent TLS handshake.
+    resp = recv_exact(s, 4)
     if resp[1] != 0x00:
         errors = {
             0x01: "general failure",
@@ -89,15 +108,16 @@ def socks5h_connect(host: str, port: int) -> socket.socket:
             f"SOCKS5 CONNECT failed: {errors.get(resp[1], f'REP={resp[1]:#04x}')}"
         )
 
-    # Consume the bound address/port from the response (we don't need it)
+    # Consume the bound address/port from the response (we don't need it,
+    # but we MUST drain it exactly — any unread bytes corrupt the TLS stream).
     atyp = resp[3]
-    if atyp == 0x01:    # IPv4: 4 bytes + 2 port
-        s.recv(6)
-    elif atyp == 0x03:  # domain: 1-byte len + n bytes + 2 port
-        n = s.recv(1)[0]
-        s.recv(n + 2)
-    elif atyp == 0x04:  # IPv6: 16 bytes + 2 port
-        s.recv(18)
+    if atyp == 0x01:    # IPv4: 4 bytes address + 2 bytes port
+        recv_exact(s, 6)
+    elif atyp == 0x03:  # domain: 1-byte length + n bytes address + 2 bytes port
+        domain_len = recv_exact(s, 1)[0]
+        recv_exact(s, domain_len + 2)
+    elif atyp == 0x04:  # IPv6: 16 bytes address + 2 bytes port
+        recv_exact(s, 18)
 
     return s
 
@@ -148,7 +168,9 @@ def handle_client(client: socket.socket) -> None:
             return
         port = int(port_s)
 
+        print(f"[bridge] CONNECT {host}:{port}", file=sys.stderr, flush=True)
         remote = socks5h_connect(host, port)
+        print(f"[bridge] tunnel established → {host}:{port}", file=sys.stderr, flush=True)
         client.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
 
         # Relay in both directions concurrently
@@ -159,7 +181,7 @@ def handle_client(client: socket.socket) -> None:
         # Don't join — threads clean up on socket close
 
     except Exception as exc:
-        print(f"[bridge] error handling CONNECT: {exc}", file=sys.stderr, flush=True)
+        print(f"[bridge] CONNECT failed ({host}:{port}): {exc}", file=sys.stderr, flush=True)
         try:
             client.close()
         except OSError:

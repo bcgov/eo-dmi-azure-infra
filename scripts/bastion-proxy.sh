@@ -39,14 +39,20 @@ case "$ACTION" in
     : "${BASTION_RESOURCE_ID:?BASTION_RESOURCE_ID is required}"
     : "${JUMPBOX_RESOURCE_ID:?JUMPBOX_RESOURCE_ID is required}"
 
+    bastion_sub=$(sed -E 's#.*/subscriptions/([^/]+)/.*#\1#' <<<"$BASTION_RESOURCE_ID")
     bastion_name=$(basename "$BASTION_RESOURCE_ID")
     bastion_rg=$(sed -E 's#.*/resourceGroups/([^/]+)/.*#\1#' <<<"$BASTION_RESOURCE_ID")
 
     az extension add --name bastion --upgrade --only-show-errors
 
+    # --subscription is required when the OIDC login is scoped to a different
+    # subscription (e.g. dev/test/prod UMAIs) than the tools sub that hosts
+    # the bastion. Without it, az CLI resolves --resource-group in the active
+    # subscription context and fails with ResourceGroupNotFound.
     az network bastion tunnel \
       --name "$bastion_name" \
       --resource-group "$bastion_rg" \
+      --subscription "$bastion_sub" \
       --target-resource-id "$JUMPBOX_RESOURCE_ID" \
       --resource-port 22 \
       --port "$TUNNEL_PORT" \
@@ -67,6 +73,8 @@ case "$ACTION" in
       --port "$TUNNEL_PORT" \
       --local-user azureuser \
       -- -D "$SOCKS_PORT" -N -f \
+         -o StrictHostKeyChecking=no \
+         -o UserKnownHostsFile=/dev/null \
       >"${PID_DIR}/ssh-socks-proxy.log" 2>&1 &
     echo $! > "$PROXY_PID_FILE"
 

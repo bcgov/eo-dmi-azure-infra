@@ -104,7 +104,7 @@ jobs:
       # The proxy writes ALL_PROXY/HTTPS_PROXY/HTTP_PROXY to $GITHUB_ENV so
       # all subsequent steps automatically route through it.
       - name: Open Bastion proxy to tools jumpbox
-        run: ${{ github.workspace }}/scripts/bastion-proxy.sh start
+        run: bash ${{ github.workspace }}/scripts/bastion-proxy.sh start
         env:
           BASTION_RESOURCE_ID: ${{ vars.BASTION_RESOURCE_ID }}
           JUMPBOX_RESOURCE_ID: ${{ vars.JUMPBOX_RESOURCE_ID }}
@@ -136,4 +136,4 @@ jobs:
       # so background bastion/SSH processes are never left running on the runner.
       - name: Close Bastion proxy
         if: always()
-        run: ${{ github.workspace }}/scripts/bastion-proxy.sh stop
+        run: bash ${{ github.workspace }}/scripts/bastion-proxy.sh stop

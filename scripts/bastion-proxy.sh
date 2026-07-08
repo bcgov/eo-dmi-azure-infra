@@ -94,18 +94,22 @@ case "$ACTION" in
     # api.ipify.org is a public service that returns the caller's outbound IP —
     # through the tunnel this should be the jumpbox's IP, proving end-to-end
     # routing. It is NOT in NO_PROXY so it always routes through the proxy.
+    echo "--- bastion tunnel log ---"
+    cat "${PID_DIR}/bastion-tunnel.log" 2>/dev/null || true
+    echo "--- ssh socks proxy log ---"
+    cat "${PID_DIR}/ssh-socks-proxy.log" 2>/dev/null || true
+    echo "--- bridge log ---"
+    cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
     echo "--- proxy chain test (layer 1: SSH SOCKS5 direct) ---"
-    curl -s --socks5-hostname "127.0.0.1:${SOCKS_PORT}" \
+    curl -v --socks5-hostname "127.0.0.1:${SOCKS_PORT}" \
       --connect-timeout 15 --max-time 20 \
       "https://api.ipify.org?format=text" \
       2>&1 && echo "" || echo "socks5 direct test failed (exit $?)"
     echo "--- proxy chain test (layer 2: HTTP CONNECT bridge) ---"
-    curl -s --proxy "http://127.0.0.1:${BRIDGE_PORT}" \
+    curl -v --proxy "http://127.0.0.1:${BRIDGE_PORT}" \
       --connect-timeout 15 --max-time 20 \
       "https://api.ipify.org?format=text" \
       2>&1 && echo "" || echo "bridge test failed (exit $?)"
-    echo "--- bridge log ---"
-    cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
     echo "--- end proxy chain test ---"
 
     {
@@ -129,9 +133,13 @@ case "$ACTION" in
     ;;
 
   stop)
+    echo "--- bastion tunnel log (full session) ---"
+    cat "${PID_DIR}/bastion-tunnel.log" 2>/dev/null || true
+    echo "--- ssh socks proxy log (full session) ---"
+    cat "${PID_DIR}/ssh-socks-proxy.log" 2>/dev/null || true
     echo "--- bridge log (full session) ---"
     cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
-    echo "--- end bridge log ---"
+    echo "--- end logs ---"
     [ -f "$BRIDGE_PID_FILE" ]  && kill "$(cat "$BRIDGE_PID_FILE")"  2>/dev/null || true
     [ -f "$PROXY_PID_FILE" ]   && kill "$(cat "$PROXY_PID_FILE")"   2>/dev/null || true
     [ -f "$TUNNEL_PID_FILE" ]  && kill "$(cat "$TUNNEL_PID_FILE")"  2>/dev/null || true

@@ -120,13 +120,13 @@ case "$ACTION" in
       # giving the same socks5h behaviour without requiring Go to parse socks5h://.
       echo "HTTPS_PROXY=http://127.0.0.1:${BRIDGE_PORT}"
       echo "HTTP_PROXY=http://127.0.0.1:${BRIDGE_PORT}"
-      # Bypass the proxy entirely for public endpoints that must be reached directly:
-      # - GitHub OIDC token endpoint (ARM_USE_OIDC=true fetches a JWT from here)
-      # - Azure AAD token endpoint (azure/login OIDC exchange)
-      # - Azure management plane (ARM API calls; public, no private endpoint)
-      # These are all reachable from the runner without a tunnel. Routing them
-      # through the bridge is harmless but adds latency and complexity.
-      echo "NO_PROXY=localhost,127.0.0.1,*.actions.githubusercontent.com,token.actions.githubusercontent.com,login.microsoftonline.com,management.azure.com"
+      # Bypass the proxy entirely for public endpoints reachable directly from
+      # the runner — routing them through the jumpbox adds latency for no benefit:
+      # - GitHub OIDC / Actions (ARM_USE_OIDC=true, azure/login)
+      # - Azure AAD + management plane (public, no private endpoint)
+      # - Terraform registry + release servers (provider downloads, public)
+      # - HashiCorp checkpoint (Terraform version check, public)
+      echo "NO_PROXY=localhost,127.0.0.1,*.actions.githubusercontent.com,token.actions.githubusercontent.com,login.microsoftonline.com,management.azure.com,registry.terraform.io,releases.hashicorp.com,checkpoint-api.hashicorp.com"
     } >> "$GITHUB_ENV"
     ;;
 
@@ -136,8 +136,15 @@ case "$ACTION" in
     echo "--- bridge log (full session) ---"
     cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
     echo "--- end logs ---"
+    # Kill by PID file first, then pkill by pattern as a fallback.
+    # pkill is necessary because `az network bastion ssh` (a Python process)
+    # spawns ssh as a child — killing the az PID leaves ssh orphaned.
     [ -f "$BRIDGE_PID_FILE" ] && kill "$(cat "$BRIDGE_PID_FILE")" 2>/dev/null || true
     [ -f "$PROXY_PID_FILE" ]  && kill "$(cat "$PROXY_PID_FILE")"  2>/dev/null || true
+    sleep 1
+    pkill -f "socks5h-bridge.py"          2>/dev/null || true
+    pkill -f "az network bastion ssh"     2>/dev/null || true
+    pkill -f "ssh.*-D ${SOCKS_PORT}"      2>/dev/null || true
     rm -f "$BRIDGE_PID_FILE" "$PROXY_PID_FILE"
     # Clear proxy vars so post-job steps (azure/login cleanup, actions/checkout)
     # don't fail trying to reach public endpoints through a now-dead tunnel.

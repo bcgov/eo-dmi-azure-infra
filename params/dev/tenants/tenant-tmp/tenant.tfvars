@@ -35,7 +35,9 @@ kv_rbac_assignments = [
 ]
 
 create_dedicated_capacity = false
-fabric_capacity_name      = "shared-cross-env"
+# null: no Fabric capacity for this test tenant (avoids dependency on
+# stacks/shared being applied in the tools environment during CI smoke tests).
+fabric_capacity_name = null
 
 tags = {
   tenant = "tenant-tmp"

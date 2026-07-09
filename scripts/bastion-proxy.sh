@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Opens (or closes) a SOCKS5 proxy to the b9cee3-tools jumpbox via Azure
-# Bastion's native client tunneling, so a GitHub-hosted runner can reach
+# Bastion's native SSH integration, so a GitHub-hosted runner can reach
 # private endpoints (Terraform state storage, Key Vault PEs) with no public
 # endpoints and no self-hosted runner. Spoke-to-spoke peering from tools to
 # dev/test/prod is already in place, so this single tunnel reaches all
@@ -9,8 +9,9 @@
 # This is an adaptation of bastion-proxy.sh from bcgov/eo-dmi-alz-bastion-jumpbox
 # - reconcile with that script if its interface changes.
 #
-# Requires: az CLI (with the `bastion` extension) and an active `az login`
-# (done via azure/login OIDC to the per-subscription UAMI before this runs).
+# Requires: az CLI (with the `bastion` and `ssh` extensions) and an active
+# `az login` (done via azure/login OIDC to the per-subscription UAMI before
+# this runs).
 #
 # Usage:
 #   bastion-proxy.sh start   # opens tunnel, appends proxy vars to $GITHUB_ENV
@@ -26,11 +27,9 @@ ACTION="${1:?usage: bastion-proxy.sh start|stop}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-TUNNEL_PORT="${TUNNEL_PORT:-2222}"
 SOCKS_PORT="${SOCKS_PORT:-8228}"
 BRIDGE_PORT="${BRIDGE_PORT:-8229}"
 PID_DIR="${RUNNER_TEMP:-/tmp}"
-TUNNEL_PID_FILE="${PID_DIR}/bastion-tunnel.pid"
 PROXY_PID_FILE="${PID_DIR}/ssh-socks-proxy.pid"
 BRIDGE_PID_FILE="${PID_DIR}/socks5h-bridge.pid"
 
@@ -43,42 +42,35 @@ case "$ACTION" in
     bastion_name=$(basename "$BASTION_RESOURCE_ID")
     bastion_rg=$(sed -E 's#.*/resourceGroups/([^/]+)/.*#\1#' <<<"$BASTION_RESOURCE_ID")
 
+    az extension add --name ssh --upgrade --only-show-errors
     az extension add --name bastion --upgrade --only-show-errors
 
+    # `az network bastion ssh` handles the Bastion WebSocket tunnel AND AAD SSH
+    # auth in a single command. --auth-type "AAD" authenticates using the current
+    # az login identity (the per-subscription UAMI) via the AADSSHLoginForLinux
+    # extension on the jumpbox — no stored SSH keys required.
+    #
     # --subscription is required when the OIDC login is scoped to a different
     # subscription (e.g. dev/test/prod UMAIs) than the tools sub that hosts
-    # the bastion. Without it, az CLI resolves --resource-group in the active
+    # the Bastion. Without it, az CLI resolves --resource-group in the active
     # subscription context and fails with ResourceGroupNotFound.
-    az network bastion tunnel \
+    az network bastion ssh \
       --name "$bastion_name" \
       --resource-group "$bastion_rg" \
       --subscription "$bastion_sub" \
       --target-resource-id "$JUMPBOX_RESOURCE_ID" \
-      --resource-port 22 \
-      --port "$TUNNEL_PORT" \
-      >"${PID_DIR}/bastion-tunnel.log" 2>&1 &
-    echo $! > "$TUNNEL_PID_FILE"
-
-    # Wait for the local tunnel endpoint to come up.
-    for _ in $(seq 1 30); do
-      (exec 3<>"/dev/tcp/127.0.0.1/${TUNNEL_PORT}") 2>/dev/null && exec 3>&- && break
-      sleep 1
-    done
-
-    # Entra ID SSH login (no stored keys, via the AAD SSH login extension on
-    # the jumpbox), opened as a local SOCKS5 proxy for Terraform's
-    # data-plane traffic (state storage blob API, Key Vault).
-    az ssh vm \
-      --ip 127.0.0.1 \
-      --port "$TUNNEL_PORT" \
-      --local-user azureuser \
-      -- -D "$SOCKS_PORT" -N -f \
+      --auth-type "AAD" \
+      -- -D "$SOCKS_PORT" -N \
          -o StrictHostKeyChecking=no \
          -o UserKnownHostsFile=/dev/null \
       >"${PID_DIR}/ssh-socks-proxy.log" 2>&1 &
     echo $! > "$PROXY_PID_FILE"
 
-    sleep 5
+    # Wait for the SOCKS5 port to be ready.
+    for _ in $(seq 1 30); do
+      (exec 3<>"/dev/tcp/127.0.0.1/${SOCKS_PORT}") 2>/dev/null && exec 3>&- && break
+      sleep 1
+    done
 
     # Start the HTTP CONNECT → SOCKS5h bridge.
     #
@@ -102,8 +94,6 @@ case "$ACTION" in
     # api.ipify.org is a public service that returns the caller's outbound IP —
     # through the tunnel this should be the jumpbox's IP, proving end-to-end
     # routing. It is NOT in NO_PROXY so it always routes through the proxy.
-    echo "--- bastion tunnel log ---"
-    cat "${PID_DIR}/bastion-tunnel.log" 2>/dev/null || true
     echo "--- ssh socks proxy log ---"
     cat "${PID_DIR}/ssh-socks-proxy.log" 2>/dev/null || true
     echo "--- bridge log ---"
@@ -141,17 +131,14 @@ case "$ACTION" in
     ;;
 
   stop)
-    echo "--- bastion tunnel log (full session) ---"
-    cat "${PID_DIR}/bastion-tunnel.log" 2>/dev/null || true
     echo "--- ssh socks proxy log (full session) ---"
     cat "${PID_DIR}/ssh-socks-proxy.log" 2>/dev/null || true
     echo "--- bridge log (full session) ---"
     cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
     echo "--- end logs ---"
-    [ -f "$BRIDGE_PID_FILE" ]  && kill "$(cat "$BRIDGE_PID_FILE")"  2>/dev/null || true
-    [ -f "$PROXY_PID_FILE" ]   && kill "$(cat "$PROXY_PID_FILE")"   2>/dev/null || true
-    [ -f "$TUNNEL_PID_FILE" ]  && kill "$(cat "$TUNNEL_PID_FILE")"  2>/dev/null || true
-    rm -f "$BRIDGE_PID_FILE" "$PROXY_PID_FILE" "$TUNNEL_PID_FILE"
+    [ -f "$BRIDGE_PID_FILE" ] && kill "$(cat "$BRIDGE_PID_FILE")" 2>/dev/null || true
+    [ -f "$PROXY_PID_FILE" ]  && kill "$(cat "$PROXY_PID_FILE")"  2>/dev/null || true
+    rm -f "$BRIDGE_PID_FILE" "$PROXY_PID_FILE"
     # Clear proxy vars so post-job steps (azure/login cleanup, actions/checkout)
     # don't fail trying to reach public endpoints through a now-dead tunnel.
     if [ -n "${GITHUB_ENV:-}" ]; then

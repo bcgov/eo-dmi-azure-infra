@@ -39,6 +39,10 @@ create_dedicated_capacity = false
 # stacks/shared being applied in the tools environment during CI smoke tests).
 fabric_capacity_name = null
 
+# true: import pre-existing Azure resources created before Terraform management.
+# Remove after a successful apply has imported all resources.
+import_preexisting_resources = true
+
 tags = {
   tenant = "tenant-tmp"
 }

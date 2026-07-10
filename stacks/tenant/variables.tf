@@ -118,3 +118,11 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# --- One-time import ---------------------------------------------------------
+
+variable "import_preexisting_resources" {
+  description = "Set to true to import pre-existing Azure resources into Terraform state. Only needed for tenants whose resources were created before Terraform management was in place. Remove after a successful apply has imported all resources."
+  type        = bool
+  default     = false
+}

@@ -1,7 +1,7 @@
 location = "canadacentral"
 
-ministry_code = "citz"   # e.g. "citz" - see docs/platform-guide.md "Naming conventions". Must match every params/bootstrap/<env>.tfvars.
-program_code  = "dap"    # e.g. "dap"
+ministry_code = "citz" # e.g. "citz" - see docs/platform-guide.md "Naming conventions". Must match every params/bootstrap/<env>.tfvars.
+program_code  = "dap"  # e.g. "dap"
 
 subscription_ids = {
   tools = "ffc5e617-7f2d-4ddb-8b57-33fc43989a8c"

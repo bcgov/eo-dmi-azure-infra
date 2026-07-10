@@ -1,5 +1,23 @@
 name: (Reusable) Terraform plan/apply
 
+# Reusable workflow called once per changed stack by pr-validate.yml (plan only)
+# and deploy.yml (plan + apply). A single call handles one environment × one
+# stack at a time; the caller builds a matrix to fan out across all changes.
+#
+# High-level flow:
+#   1. OIDC login → exchanges the GitHub-issued JWT for an Azure access token
+#      for the per-environment UAMI (no stored credentials needed).
+#   2. Bastion proxy → opens an SSH SOCKS5 tunnel through the tools-subscription
+#      jumpbox so Terraform can reach private storage endpoints for state
+#      (and Key Vault PEs used by the tenant stack).
+#   3. terraform init → initialises the backend using the per-run config args
+#      (RG, storage account, state key — all environment-specific).
+#   4. terraform plan → produces an execution plan and posts it to the
+#      job summary so reviewers can see it in the GitHub UI.
+#   5. terraform apply → only runs when apply=true (deploy.yml on main).
+#   6. Bastion proxy stop → always runs, even if earlier steps fail, so the
+#      background tunnel processes are never left dangling on the runner.
+
 on:
   workflow_call:
     inputs:
@@ -8,14 +26,25 @@ on:
         required: true
         type: string
       target_environment:
+        # "environment:" below uses this value to select the GitHub Environment,
+        # which supplies the UAMI credentials (AZURE_CLIENT_ID etc.) and —
+        # for test and prod — triggers a manual approval gate before running.
         description: tools | dev | test | prod - selects the GitHub Environment (UAMI + Bastion/jumpbox variables, and approval gates for test/prod).
         required: true
         type: string
       backend_config_args:
+        # Example (from pr-validate.yml):
+        #   -backend-config=resource_group_name=rg-min-prog-tfstate-dev
+        #   -backend-config=storage_account_name=stminprogdevtfstate
+        #   -backend-config=container_name=tfstate
+        #   -backend-config=key=tenant/pmt.tfstate
+        #   -backend-config=use_azuread_auth=true
         description: Space-separated -backend-config="key=value" arguments.
         required: true
         type: string
       var_file_args:
+        # Example: -var-file=../../params/dev/shared.tfvars
+        #          -var-file=../../params/dev/tenants/pmt/tenant.tfvars
         description: Space-separated -var-file=... arguments.
         required: true
         type: string
@@ -28,13 +57,32 @@ on:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    # Binds this job to the GitHub Environment for the target env, which:
+    #   - Injects env-scoped variables (AZURE_CLIENT_ID, AZURE_SUBSCRIPTION_ID,
+    #     AZURE_TENANT_ID, BASTION_RESOURCE_ID, JUMPBOX_RESOURCE_ID).
+    #   - Enforces any protection rules (manual approval for test/prod).
     environment: ${{ inputs.target_environment }}
     permissions:
+      # id-token: write is required for GitHub OIDC — without it the runner
+      # cannot request a JWT to exchange for an Azure access token.
       id-token: write
       contents: read
+    # The azurerm provider authenticates via OIDC directly — it does NOT use the
+    # Azure CLI token that azure/login sets up (CLI auth is only for user accounts,
+    # not Service Principals). These ARM_* vars tell the provider to use OIDC and
+    # where to fetch the token from (GitHub's OIDC endpoint, available because
+    # id-token: write is granted above).
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
 
+      # Exchanges the GitHub OIDC JWT for an Azure access token scoped to
+      # the per-environment UAMI. No stored client secrets or certificates.
+      # The UAMI's federated credential trusts JWTs from this repo+environment.
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -44,29 +92,48 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "~1.7"
+          # terraform_wrapper: false prevents the action from wrapping the
+          # terraform binary in a node script. The wrapper captures stdout for
+          # annotations but breaks multi-line output capture in shell scripts
+          # (e.g. plan output piped to $GITHUB_STEP_SUMMARY).
           terraform_wrapper: false
 
+      # Opens an SSH SOCKS5 proxy via Azure Bastion → tools jumpbox.
+      # Terraform's storage backend uses a private endpoint (no public access),
+      # so without this tunnel, terraform init and state operations would fail.
+      # The proxy writes ALL_PROXY/HTTPS_PROXY/HTTP_PROXY to $GITHUB_ENV so
+      # all subsequent steps automatically route through it.
       - name: Open Bastion proxy to tools jumpbox
-        run: ${{ github.workspace }}/scripts/bastion-proxy.sh start
+        run: bash ${{ github.workspace }}/scripts/bastion-proxy.sh start
         env:
           BASTION_RESOURCE_ID: ${{ vars.BASTION_RESOURCE_ID }}
           JUMPBOX_RESOURCE_ID: ${{ vars.JUMPBOX_RESOURCE_ID }}
 
+      # Initialises the Terraform working directory and configures the remote
+      # backend. Backend config is passed at runtime (not hardcoded in backend.tf)
+      # so a single stack definition works across all environments.
       - name: terraform init
         working-directory: ${{ inputs.working_directory }}
         run: terraform init -input=false ${{ inputs.backend_config_args }}
 
+      # Produces a plan and appends a human-readable summary to the GitHub
+      # job summary page so PR reviewers can see the diff without downloading
+      # artefacts. The plan file (tfplan) is reused by the apply step.
       - name: terraform plan
         working-directory: ${{ inputs.working_directory }}
         run: |
           terraform plan -input=false -out=tfplan ${{ inputs.var_file_args }}
           terraform show -no-color tfplan >> "$GITHUB_STEP_SUMMARY"
 
+      # Only runs when the caller sets apply: true (i.e. deploy.yml on main).
+      # Reuses the plan file produced above — no separate init/plan cycle.
       - name: terraform apply
         if: inputs.apply
         working-directory: ${{ inputs.working_directory }}
         run: terraform apply -input=false -auto-approve tfplan
 
+      # "if: always()" ensures this step runs even when earlier steps fail,
+      # so background bastion/SSH processes are never left running on the runner.
       - name: Close Bastion proxy
         if: always()
-        run: ${{ github.workspace }}/scripts/bastion-proxy.sh stop
+        run: bash ${{ github.workspace }}/scripts/bastion-proxy.sh stop

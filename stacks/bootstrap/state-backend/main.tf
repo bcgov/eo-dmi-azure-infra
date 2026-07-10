@@ -17,9 +17,9 @@ module "tfstate_backend" {
 
   resource_group_name      = local.resource_group_name
   storage_account_name     = local.storage_account_name
-  location                  = var.location
+  location                 = var.location
   account_replication_type = var.account_replication_type
-  subnet_id                 = var.subnet_id
-  private_dns_zone_ids      = var.private_dns_zone_ids
-  tags                       = var.tags
+  subnet_id                = var.subnet_id
+  private_dns_zone_ids     = var.private_dns_zone_ids
+  tags                     = var.tags
 }

@@ -1,5 +1,15 @@
 name: (Reusable) Lint
 
+# Reusable workflow called by pr-validate.yml on every pull request.
+# Runs static checks across the whole repo — no Azure credentials needed.
+# Any failure here blocks the PR before Terraform even tries to plan.
+#
+# Checks in order:
+#   1. terraform fmt  — formatting (cosmetic, but keeps diffs clean)
+#   2. terraform validate — syntax + type checking for every module and stack
+#   3. tflint — Terraform-specific linting (deprecated args, missing vars, etc.)
+#   4. checkov — security/compliance policy scanning (CIS, NIST, etc.)
+
 on:
   workflow_call: {}
 
@@ -13,9 +23,14 @@ jobs:
         with:
           terraform_wrapper: false
 
+      # Fails if any .tf file is not formatted. Run `terraform fmt -recursive`
+      # locally to auto-fix before pushing.
       - name: terraform fmt
         run: terraform fmt -check -recursive
 
+      # Validates each module in isolation (no backend, no real provider calls).
+      # `::group::` / `::endgroup::` collapse the per-module output in the
+      # GitHub Actions log so it's easy to expand only the failing one.
       - name: terraform validate (modules)
         run: |
           for dir in modules/*/; do
@@ -25,6 +40,10 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Same for stacks. stacks/bootstrap/* are sub-directories so the glob
+      # covers both stacks/tenant/, stacks/shared/, and stacks/bootstrap/*/
+      # The `[ -f "$dir/main.tf" ]` guard skips directories that aren't stacks
+      # (e.g. stacks/bootstrap itself, which has no main.tf of its own).
       - name: terraform validate (stacks)
         run: |
           for dir in stacks/*/ stacks/bootstrap/*/; do
@@ -37,11 +56,22 @@ jobs:
 
       - uses: terraform-linters/setup-tflint@v4
 
+      # tflint --init downloads provider-specific rules (e.g. azurerm plugin).
+      # --recursive walks all subdirectories.
+      # --config is passed as an absolute path so that tflint's recursive
+      # sub-runs (which each change working directory to the module being linted)
+      # still find the root .tflint.hcl. Without this, subdirectory runs fall
+      # back to default config (all rules enabled), ignoring rule disabling in
+      # the root file — which is why rule {} blocks in .tflint.hcl were being
+      # ignored for modules/*.
       - name: tflint
         run: |
           tflint --init
-          tflint --recursive
+          tflint --recursive --config "$(pwd)/.tflint.hcl"
 
+      # Checkov scans for misconfigurations against a large library of policies
+      # (storage accounts with public access, key vaults without soft-delete, etc.).
+      # `quiet: true` suppresses passed checks so the output is easier to read.
       - name: checkov
         uses: bridgecrewio/checkov-action@master
         with:

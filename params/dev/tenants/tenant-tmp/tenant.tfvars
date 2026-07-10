@@ -30,13 +30,17 @@ workspace_owners_group_object_id = "acc400f6-00af-4401-8720-9fa3770b1845"
 kv_rbac_assignments = [
   {
     role_definition_name = "Key Vault Secrets Officer"
-    principal_id          = "acc400f6-00af-4401-8720-9fa3770b1845" # TODO: replace with team Entra group object ID
+    principal_id         = "acc400f6-00af-4401-8720-9fa3770b1845" # TODO: replace with team Entra group object ID
   }
 ]
 
 create_dedicated_capacity = false
-fabric_capacity_name      = "shared-cross-env"
+# null: no Fabric capacity for this test tenant (avoids dependency on
+# stacks/shared being applied in the tools environment during CI smoke tests).
+fabric_capacity_name = null
 
 tags = {
   tenant = "tenant-tmp"
 }
+
+# ci test

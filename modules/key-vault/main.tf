@@ -1,4 +1,5 @@
 resource "azurerm_key_vault" "this" {
+  #checkov:skip=CKV2_AZURE_32:Private endpoint for this key vault is configured by the calling stack (stacks/tenant), not the reusable module
   name                = var.name
   resource_group_name = var.resource_group_name
   location            = var.location

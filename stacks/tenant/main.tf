@@ -1,12 +1,12 @@
 module "platform_rg" {
   source = "../../modules/tenant-platform-rg"
 
-  ministry_code        = var.ministry_code
-  tenant_name          = var.tenant_name
-  tenant_program_name  = var.tenant_program_name
-  environment          = var.environment
-  location             = var.location
-  tags                 = var.tags
+  ministry_code       = var.ministry_code
+  tenant_name         = var.tenant_name
+  tenant_program_name = var.tenant_program_name
+  environment         = var.environment
+  location            = var.location
+  tags                = var.tags
 }
 
 module "key_vault" {
@@ -37,13 +37,13 @@ module "key_vault_private_endpoint" {
 module "workspace_rg" {
   source = "../../modules/workspace-rg"
 
-  ministry_code                     = var.ministry_code
-  tenant_name                       = var.tenant_name
-  tenant_program_name               = var.tenant_program_name
-  environment                       = var.environment
-  location                          = var.location
-  workspace_owners_group_object_id  = var.workspace_owners_group_object_id
-  tags                               = var.tags
+  ministry_code                    = var.ministry_code
+  tenant_name                      = var.tenant_name
+  tenant_program_name              = var.tenant_program_name
+  environment                      = var.environment
+  location                         = var.location
+  workspace_owners_group_object_id = var.workspace_owners_group_object_id
+  tags                             = var.tags
 }
 
 # Grants tenant team members Virtual Machine User Login on the shared jumpbox so
@@ -51,16 +51,15 @@ module "workspace_rg" {
 # Fabric). The jumpbox VM itself is managed in bcgov/eo-dmi-alz-bastion-jumpbox;
 # this assignment is the only cross-repo resource in the tenant stack.
 #
-# TEMPORARILY COMMENTED OUT: requires the dev/test/prod UAMIs to have
-# Role Based Access Control Administrator on the jumpbox VM (tools subscription).
-# Re-enable once stacks/bootstrap/identity has been re-applied with the
-# jumpbox_rbac_admin role assignments.
-#
-# resource "azurerm_role_assignment" "jumpbox_vm_login" {
-#   scope                = var.jumpbox_vm_id
-#   role_definition_name = "Virtual Machine User Login"
-#   principal_id         = var.workspace_owners_group_object_id
-# }
+# The dev/test/prod UAMIs can make this cross-subscription assignment because they
+# are members of DO_PuC_Azure_Live_b9cee3_Owners, which grants Owner (with ABAC
+# condition) at management group scope. The ABAC condition allows resource-scope
+# assignments of non-privileged roles such as Virtual Machine User Login.
+resource "azurerm_role_assignment" "jumpbox_vm_login" {
+  scope                = var.jumpbox_vm_id
+  role_definition_name = "Virtual Machine User Login"
+  principal_id         = var.workspace_owners_group_object_id
+}
 
 module "dedicated_fabric_capacity" {
   count = var.create_dedicated_capacity ? 1 : 0
@@ -68,10 +67,10 @@ module "dedicated_fabric_capacity" {
   source = "../../modules/fabric-capacity"
 
   # Fabric capacity names allow lowercase alphanumeric only (no hyphens).
-  name                   = replace("fc${var.ministry_code}${local.tenant_segment}${var.environment}", "-", "")
+  name                  = replace("fc${var.ministry_code}${local.tenant_segment}${var.environment}", "-", "")
   resource_group_name   = module.platform_rg.name
-  location               = var.location
-  sku_name               = var.dedicated_capacity_sku
+  location              = var.location
+  sku_name              = var.dedicated_capacity_sku
   administrator_members = var.fabric_capacity_admins
-  tags                   = var.tags
+  tags                  = var.tags
 }

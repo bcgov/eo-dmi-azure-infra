@@ -32,7 +32,7 @@ if grep -qE '^(modules/|stacks/shared/|params/global/fabric-capacities\.yaml)' <
   SHARED_JSON='["tools","dev","test","prod"]'
 else
   SHARED_JSON=$(grep -oE '^params/[^/]+/shared\.tfvars' <<<"$CHANGED" \
-    | awk -F/ '{print $2}' | sort -u | jq -R -s -c 'split("\n")[:-1]')
+    | awk -F/ '{print $2}' | sort -u | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
 fi
 
 echo "tenants=${TENANTS_JSON}" >> "$GITHUB_OUTPUT"

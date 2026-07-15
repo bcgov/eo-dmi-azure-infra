@@ -23,16 +23,30 @@ if grep -qE '^(modules/|stacks/tenant/)' <<<"$CHANGED"; then
     | awk -F/ '{printf "{\"env\":\"%s\",\"tenant\":\"%s\"}\n", $2, $4}' \
     | jq -s -c .)
 else
-  TENANTS_JSON=$(grep -oE '^params/[^/]+/tenants/[^/]+/tenant\.tfvars' <<<"$CHANGED" \
-    | awk -F/ '{printf "{\"env\":\"%s\",\"tenant\":\"%s\"}\n", $2, $4}' \
-    | jq -s -c . || echo '[]')
+  # grep exits 1 (no match) and jq -s -c . on empty input also outputs '[]' —
+  # combining them with || causes jq's '[]' AND echo's '[]' to both be captured,
+  # producing a two-line value that corrupts $GITHUB_OUTPUT. Separate the grep
+  # so we can short-circuit cleanly.
+  _tenant_matches=$(grep -oE '^params/[^/]+/tenants/[^/]+/tenant\.tfvars' <<<"$CHANGED" || true)
+  if [[ -z "$_tenant_matches" ]]; then
+    TENANTS_JSON='[]'
+  else
+    TENANTS_JSON=$(echo "$_tenant_matches" \
+      | awk -F/ '{printf "{\"env\":\"%s\",\"tenant\":\"%s\"}\n", $2, $4}' \
+      | jq -s -c .)
+  fi
 fi
 
 if grep -qE '^(modules/|stacks/shared/|params/global/fabric-capacities\.yaml)' <<<"$CHANGED"; then
   SHARED_JSON='["tools","dev","test","prod"]'
 else
-  SHARED_JSON=$(grep -oE '^params/[^/]+/shared\.tfvars' <<<"$CHANGED" \
-    | awk -F/ '{print $2}' | sort -u | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
+  _shared_matches=$(grep -oE '^params/[^/]+/shared\.tfvars' <<<"$CHANGED" || true)
+  if [[ -z "$_shared_matches" ]]; then
+    SHARED_JSON='[]'
+  else
+    SHARED_JSON=$(echo "$_shared_matches" \
+      | awk -F/ '{print $2}' | sort -u | jq -R -s -c 'split("\n")[:-1]')
+  fi
 fi
 
 echo "tenants=${TENANTS_JSON}" >> "$GITHUB_OUTPUT"

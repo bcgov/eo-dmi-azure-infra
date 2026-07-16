@@ -3,10 +3,6 @@ output "platform_resource_group_name" {
   value       = module.platform_rg.name
 }
 
-output "workspace_resource_group_name" {
-  description = "Name of the self-service workspace RG (rg-<tenant>-<env>-workspace)."
-  value       = module.workspace_rg.name
-}
 
 output "key_vault_id" {
   description = "Resource ID of the tenant's Key Vault."

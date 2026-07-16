@@ -9,9 +9,6 @@ tenant_program_name = null
 
 # Entra ID object ID of the group for the tenant-tmp team.
 # This group is granted:
-#   - Contributor on the workspace RG (rg-citz-tenant-tmp-dev-ws) — allows the
-#     team to self-manage Azure resources in that RG (create/update/delete).
-#     Does NOT allow assigning roles to others.
 #   - Virtual Machine User Login on the shared Bastion jumpbox — allows the
 #     team to open a tunnel to reach private endpoints (KV, storage, Fabric).
 #   - Any roles listed in kv_rbac_assignments below.
@@ -38,10 +35,6 @@ create_dedicated_capacity = false
 # null: no Fabric capacity for this test tenant (avoids dependency on
 # stacks/shared being applied in the tools environment during CI smoke tests).
 fabric_capacity_name = null
-
-# true: import pre-existing Azure resources created before Terraform management.
-# Remove after a successful apply has imported all resources.
-import_preexisting_resources = true
 
 tags = {
   tenant = "tenant-tmp"

@@ -34,18 +34,6 @@ module "key_vault_private_endpoint" {
   tags                 = var.tags
 }
 
-module "workspace_rg" {
-  source = "../../modules/workspace-rg"
-
-  ministry_code                    = var.ministry_code
-  tenant_name                      = var.tenant_name
-  tenant_program_name              = var.tenant_program_name
-  environment                      = var.environment
-  location                         = var.location
-  workspace_owners_group_object_id = var.workspace_owners_group_object_id
-  tags                             = var.tags
-}
-
 # Grants tenant team members Virtual Machine User Login on the shared jumpbox so
 # they can open a Bastion tunnel to reach private endpoints (Key Vault, storage,
 # Fabric). The jumpbox VM itself is managed in bcgov/eo-dmi-alz-bastion-jumpbox;

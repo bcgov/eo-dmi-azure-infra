@@ -78,7 +78,7 @@ variable "kv_rbac_assignments" {
 # --- Workspace (self-service) RG ---------------------------------------------
 
 variable "workspace_owners_group_object_id" {
-  description = "Entra ID object ID of the group that self-manages resources in this tenant's workspace RG."
+  description = "Entra ID object ID of the tenant team's Entra group. Granted Virtual Machine User Login on the shared jumpbox and any roles in kv_rbac_assignments on the tenant Key Vault."
   type        = string
 }
 

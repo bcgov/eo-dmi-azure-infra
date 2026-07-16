@@ -16,12 +16,6 @@ import {
 
 import {
   for_each = var.import_preexisting_resources ? toset(["this"]) : toset([])
-  to       = module.workspace_rg.azurerm_resource_group.workspace
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/rg-${var.ministry_code}-${local.tenant_segment}-${var.environment}-ws"
-}
-
-import {
-  for_each = var.import_preexisting_resources ? toset(["this"]) : toset([])
   to       = module.key_vault.azurerm_key_vault.this
   id       = "/subscriptions/${var.subscription_id}/resourceGroups/rg-${var.ministry_code}-${local.tenant_segment}-${var.environment}/providers/Microsoft.KeyVault/vaults/kv-${var.ministry_code}-${local.tenant_segment}-${var.environment}"
 }

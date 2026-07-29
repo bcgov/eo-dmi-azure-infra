@@ -66,9 +66,17 @@ case "$ACTION" in
       >"${PID_DIR}/ssh-socks-proxy.log" 2>&1 &
     echo $! > "$PROXY_PID_FILE"
 
-    # Wait for the SOCKS5 port to be ready.
+    # Wait up to 30s for the SOCKS5 port to be ready. The port opening confirms
+    # the SSH tunnel is established and the jumpbox accepted the connection.
+    # We check the result explicitly below and exit with a clear error if it
+    # never comes up — rather than silently continuing with a dead tunnel.
+    _proxy_ready=0
     for _ in $(seq 1 30); do
-      (exec 3<>"/dev/tcp/127.0.0.1/${SOCKS_PORT}") 2>/dev/null && exec 3>&- && break
+      if (exec 3<>"/dev/tcp/127.0.0.1/${SOCKS_PORT}") 2>/dev/null; then
+        exec 3>&-
+        _proxy_ready=1
+        break
+      fi
       sleep 1
     done
 
@@ -98,16 +106,44 @@ case "$ACTION" in
     cat "${PID_DIR}/ssh-socks-proxy.log" 2>/dev/null || true
     echo "--- bridge log ---"
     cat "${PID_DIR}/socks5h-bridge.log" 2>/dev/null || true
+
+    # Fail fast with actionable errors before attempting the proxy chain test.
+    # Check for known failure signatures in the ssh log so CI surfaces the root
+    # cause immediately rather than failing later with a cryptic network error.
+    if grep -q "ResourceNotFound" "${PID_DIR}/ssh-socks-proxy.log" 2>/dev/null; then
+      echo "##[error]Bastion host not found — check that BASTION_RESOURCE_ID is correct and the Bastion host is deployed." >&2
+      exit 1
+    fi
+
+    # If the SOCKS5 port never opened after 30s the tunnel didn't come up.
+    # Common causes: VM is deallocated, AADSSHLoginForLinux extension not ready,
+    # or Bastion is still provisioning.
+    if [[ "$_proxy_ready" -eq 0 ]]; then
+      echo "##[error]SOCKS5 proxy port ${SOCKS_PORT} is not open after 30s — the Bastion tunnel did not come up." >&2
+      echo "##[error]Check that the jumpbox VM is running and the AADSSHLoginForLinux extension is healthy." >&2
+      exit 1
+    fi
+
     echo "--- proxy chain test (layer 1: SSH SOCKS5 direct) ---"
-    curl -v --socks5-hostname "127.0.0.1:${SOCKS_PORT}" \
+    if ! curl -v --socks5-hostname "127.0.0.1:${SOCKS_PORT}" \
       --connect-timeout 15 --max-time 20 \
       "https://api.ipify.org?format=text" \
-      2>&1 && echo "" || echo "socks5 direct test failed (exit $?)"
+      2>&1; then
+      echo ""
+      echo "##[error]SOCKS5 direct proxy test failed — tunnel is up but traffic is not flowing through the jumpbox." >&2
+      exit 1
+    fi
+    echo ""
     echo "--- proxy chain test (layer 2: HTTP CONNECT bridge) ---"
-    curl -v --proxy "http://127.0.0.1:${BRIDGE_PORT}" \
+    if ! curl -v --proxy "http://127.0.0.1:${BRIDGE_PORT}" \
       --connect-timeout 15 --max-time 20 \
       "https://api.ipify.org?format=text" \
-      2>&1 && echo "" || echo "bridge test failed (exit $?)"
+      2>&1; then
+      echo ""
+      echo "##[error]HTTP CONNECT bridge test failed — bridge is not forwarding traffic correctly." >&2
+      exit 1
+    fi
+    echo ""
     echo "--- end proxy chain test ---"
 
     {

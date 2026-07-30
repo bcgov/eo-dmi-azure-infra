@@ -77,9 +77,10 @@ variable "kv_rbac_assignments" {
 
 # --- Workspace (self-service) RG ---------------------------------------------
 
-variable "workspace_owners_group_object_id" {
-  description = "Entra ID object ID of the tenant team's Entra group. Granted Virtual Machine User Login on the shared jumpbox and any roles in kv_rbac_assignments on the tenant Key Vault."
-  type        = string
+variable "jumpbox_principal_ids" {
+  description = "Entra ID object IDs (users, groups, or service principals) to grant Virtual Machine User Login on the shared jumpbox, allowing them to open a Bastion tunnel to reach tenant private endpoints. Accepts a list so individual users can be granted access without requiring an Entra group."
+  type        = list(string)
+  default     = []
 }
 
 # --- Fabric capacity -----------------------------------------------------------

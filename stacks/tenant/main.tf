@@ -44,9 +44,11 @@ module "key_vault_private_endpoint" {
 # condition) at management group scope. The ABAC condition allows resource-scope
 # assignments of non-privileged roles such as Virtual Machine User Login.
 resource "azurerm_role_assignment" "jumpbox_vm_login" {
+  for_each = toset(var.jumpbox_principal_ids)
+
   scope                = var.jumpbox_vm_id
   role_definition_name = "Virtual Machine User Login"
-  principal_id         = var.workspace_owners_group_object_id
+  principal_id         = each.value
 }
 
 module "dedicated_fabric_capacity" {

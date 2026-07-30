@@ -79,13 +79,10 @@ environment = "dev"
 #   rg-citz-<tenant>-<tenant_program_name>-dev  instead of  rg-citz-<tenant>-dev
 # tenant_program_name = "pdt"
 
-# Object ID of the Entra ID group for this tenant's team.
-# The group gets:
-#   - Virtual Machine User Login on the shared Bastion jumpbox
-#     → allows the team to open a Bastion tunnel to reach their Key Vault and private endpoints
-# The group must already exist — this repo does not create Entra ID groups.
-# To add/remove people: manage the group membership in Entra ID (no Terraform changes needed).
-workspace_owners_group_object_id = "<entra-group-object-id>"
+# Entra ID object IDs granted Virtual Machine User Login on the shared Bastion jumpbox.
+# These principals can open a Bastion tunnel to reach the tenant's private endpoints.
+# Accepts individual user object IDs or Entra group object IDs (preferred when a group exists).
+jumpbox_principal_ids = ["<object-id-1>", "<object-id-2>"]
 
 # Key Vault role assignments for this tenant's KV.
 # Key Vault Secrets Officer: create, update, delete secrets — correct for tenant teams.

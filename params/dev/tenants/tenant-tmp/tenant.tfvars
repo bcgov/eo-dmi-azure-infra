@@ -7,17 +7,10 @@ tenant_name         = "tenant-tmp"
 environment         = "dev"
 tenant_program_name = null
 
-# Entra ID object ID of the group for the tenant-tmp team.
-# This group is granted:
-#   - Virtual Machine User Login on the shared Bastion jumpbox — allows the
-#     team to open a tunnel to reach private endpoints (KV, storage, Fabric).
-#   - Any roles listed in kv_rbac_assignments below.
-#
-# To add/remove people from all of the above: manage membership of this group
-# in Entra ID (Azure Portal → Entra ID → Groups → find group → Members).
-# No Terraform changes needed for membership changes.
-# TODO: replace with the tenant-tmp dev team's Entra group object ID once group is set up
-workspace_owners_group_object_id = "acc400f6-00af-4401-8720-9fa3770b1845"
+# Entra ID object IDs granted Virtual Machine User Login on the shared Bastion jumpbox.
+# These principals can open a Bastion tunnel to reach the tenant's private endpoints.
+# Can be individual user object IDs or Entra group object IDs.
+jumpbox_principal_ids = ["acc400f6-00af-4401-8720-9fa3770b1845"]
 
 # Key Vault role assignments for this tenant's KV.
 # Key Vault Secrets Officer: allows the tenant team to create, update, and
@@ -27,7 +20,7 @@ workspace_owners_group_object_id = "acc400f6-00af-4401-8720-9fa3770b1845"
 kv_rbac_assignments = [
   {
     role_definition_name = "Key Vault Secrets Officer"
-    principal_id         = "acc400f6-00af-4401-8720-9fa3770b1845" # TODO: replace with team Entra group object ID
+    principal_id         = "acc400f6-00af-4401-8720-9fa3770b1845"
   }
 ]
 

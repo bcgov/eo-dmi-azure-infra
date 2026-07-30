@@ -34,16 +34,6 @@ module "key_vault_private_endpoint" {
   tags                 = var.tags
 }
 
-# Grants tenant team members Virtual Machine User Login on the shared jumpbox so
-# they can open a Bastion tunnel to reach private endpoints (Key Vault, storage,
-# Fabric). The jumpbox VM itself is managed in bcgov/eo-dmi-alz-bastion-jumpbox;
-# this assignment is the only cross-repo resource in the tenant stack.
-#
-# The dev/test/prod UAMIs can make this cross-subscription assignment because they
-# are members of DO_PuC_Azure_Live_b9cee3_Owners, which grants Owner (with ABAC
-# condition) at management group scope. The ABAC condition allows resource-scope
-# assignments of non-privileged roles such as Virtual Machine User Login.
-
 module "dedicated_fabric_capacity" {
   count = var.create_dedicated_capacity ? 1 : 0
 

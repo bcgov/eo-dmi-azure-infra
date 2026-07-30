@@ -37,7 +37,7 @@ eo-dmi-azure-infra/
 │   │   ├── state-backend/  # Once per subscription — creates state storage account
 │   │   └── identity/       # Once in tools — creates all 4 UAMIs and all RBAC
 │   ├── shared/             # Per-env shared Fabric capacities
-│   └── tenant/             # Per-tenant, per-env: KV + PE + workspace RG + optional capacity
+│   └── tenant/             # Per-tenant, per-env: KV + PE + optional dedicated capacity
 ├── params/               # Variable values — editing a file here is what triggers a CI deploy
 │   ├── global/
 │   │   ├── fabric-capacities.yaml   # Registry of shared Fabric capacities
@@ -61,6 +61,8 @@ eo-dmi-azure-infra/
 
 No changes to modules or stacks needed — only add files under `params/`.
 
+Tenants can use either a **3-env pattern** (dev → test → prod) or a **2-env pattern** (dev → prod, skipping test). The pipeline discovers whatever environments are present under `params/` — simply omit the `params/test/tenants/<tenant>/` directory for a 2-env tenant. Both patterns use the same promotion flow; see [Promoting a tenant](#promoting-a-tenant) below.
+
 ### 1. Copy the example tenant directory
 
 ```bash
@@ -79,9 +81,6 @@ environment = "dev"
 
 # Object ID of the Entra ID group for this tenant's team.
 # The group gets:
-#   - Contributor on the workspace RG (rg-citz-<tenant>-dev-ws)
-#     → the team can create/update/delete any resource inside that RG
-#     → does NOT allow assigning roles to others
 #   - Virtual Machine User Login on the shared Bastion jumpbox
 #     → allows the team to open a Bastion tunnel to reach their Key Vault and private endpoints
 # The group must already exist — this repo does not create Entra ID groups.
@@ -118,19 +117,21 @@ git push origin onboard/<tenant>
 # open PR on GitHub
 ```
 
-`pr-validate.yml` detects the new directory and runs `terraform plan`. Review the plan in the PR checks — it should show 4 resources: platform RG, Key Vault, KV private endpoint, workspace RG.
+`pr-validate.yml` detects the new directory and runs `terraform plan`. Review the plan in the PR checks — it should show 3 resources: platform RG, Key Vault, and KV private endpoint.
 
 ### 4. Merge
 
-`deploy.yml` applies the plan. The tenant team can access their workspace RG and Key Vault immediately.
-
-> **Note on Bastion access**: the `Virtual Machine User Login` assignment on the shared jumpbox is currently **commented out** in `stacks/tenant/main.tf`. It requires the dev/test/prod UAMIs to have `Role Based Access Control Administrator` scoped to the jumpbox VM first. This is already coded in `stacks/bootstrap/identity` as `jumpbox_rbac_admin` but needs to be applied. Re-apply `stacks/bootstrap/identity`, then uncomment the `jumpbox_vm_login` block in `stacks/tenant/main.tf`.
+`deploy.yml` applies the plan. The tenant team can access their Key Vault immediately via the Bastion jumpbox tunnel.
 
 ---
 
-## Promoting a tenant to test/prod
+## Promoting a tenant
 
 Promotion is just copying `tenant.tfvars` to the next environment. Each environment has its own state file, so onboarding or changing one tenant never re-plans another.
+
+### 3-env pattern (dev → test → prod)
+
+Use this when the tenant wants a dedicated test environment for pre-production validation.
 
 ```bash
 # Dev → test
@@ -144,9 +145,24 @@ sed -i '' 's/environment = "test"/environment = "prod"/' \
     params/prod/tenants/<tenant>/tenant.tfvars
 ```
 
-Open a PR with the new files. The `test` and `prod` GitHub Environments have required reviewers — the apply job pauses for approval before running.
-
 You can promote dev→test and test→prod in the same PR, or in separate PRs. Separate PRs give you a natural gate.
+
+### 2-env pattern (dev → prod, skipping test)
+
+Use this when a tenant treats dev as their non-prod environment and doesn't need a separate test stage. Simply skip the test directory entirely and promote dev directly to prod.
+
+```bash
+# Dev → prod (skip test)
+cp -r params/dev/tenants/<tenant> params/prod/tenants/<tenant>
+sed -i '' 's/environment = "dev"/environment = "prod"/' \
+    params/prod/tenants/<tenant>/tenant.tfvars
+```
+
+The tenant's Azure resources will be named `*-dev` (non-prod) and `*-prod`. The pipeline detects only the environments that have a `tenant.tfvars` present — no code changes are needed to use this pattern.
+
+### Approval gates
+
+The `prod` GitHub Environment has required reviewers — the apply job pauses for approval before `terraform apply` runs. The `test` environment also has required reviewers if you are using the 3-env pattern.
 
 ---
 

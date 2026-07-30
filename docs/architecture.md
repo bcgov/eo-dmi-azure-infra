@@ -144,10 +144,6 @@ flowchart TB
         FC_DED["fc-MIN-TENANT-ENV (optional)\n(module: fabric-capacity)\nonly if create_dedicated_capacity=true"]
     end
 
-    subgraph WORKSPACE_RG["rg-MIN-TENANT-ENV-ws\n(module: workspace-rg)"]
-        WS["Contributor RBAC ->\nworkspace_owners_group_object_id"]
-    end
-
     DECISION{"create_dedicated_capacity?"}
     REMOTE["data.terraform_remote_state.shared\n(stacks/tenant/locals.tf)\nresolves shared_capacity_id"]
     SHARED_FC["fc-MIN-PRG-shared-cross-env\n(stacks/shared, homed in tools)"]
@@ -287,3 +283,9 @@ sequenceDiagram
 `pr-validate.yml` runs the loop with `apply: false`; `deploy.yml` runs it with
 `apply: true`. `test`/`prod` GitHub Environments with required reviewers pause
 the matrix job before `terraform apply` runs.
+
+Tenants may use either a 3-env pattern (`dev` → `test` → `prod`) or a 2-env
+pattern (`dev` → `prod`, no `test`). The pipeline discovers whichever
+environments have a `tenant.tfvars` present under `params/` — no code changes
+are required to support either pattern. See README "Promoting a tenant" for the
+step-by-step commands for each.

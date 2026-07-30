@@ -77,12 +77,6 @@ variable "kv_rbac_assignments" {
 
 # --- Workspace (self-service) RG ---------------------------------------------
 
-variable "jumpbox_principal_ids" {
-  description = "Entra ID object IDs (users, groups, or service principals) to grant Virtual Machine User Login on the shared jumpbox, allowing them to open a Bastion tunnel to reach tenant private endpoints. Accepts a list so individual users can be granted access without requiring an Entra group."
-  type        = list(string)
-  default     = []
-}
-
 # --- Fabric capacity -----------------------------------------------------------
 
 variable "create_dedicated_capacity" {
@@ -107,11 +101,6 @@ variable "fabric_capacity_name" {
   description = "Name of the shared capacity from params/global/fabric-capacities.yaml this tenant uses, when create_dedicated_capacity is false. Its resource ID is resolved via remote state - see locals.tf."
   type        = string
   default     = null
-}
-
-variable "jumpbox_vm_id" {
-  description = "Resource ID of the shared Bastion jumpbox VM (in bcgov/eo-dmi-alz-bastion-jumpbox). The tenant's Entra ID group (workspace_owners_group_object_id) is granted Virtual Machine User Login on this VM so tenant teams can reach private endpoints via the Bastion tunnel."
-  type        = string
 }
 
 variable "tags" {

@@ -9,10 +9,6 @@ azure_tenant_id = "6fdb5200-3d0d-4a8a-b036-d3685e359adc"
 pe_subnet_id         = "/subscriptions/8e303ae8-ce14-4e85-9dc3-9d767a42dec8/resourceGroups/b9cee3-test-networking/providers/Microsoft.Network/virtualNetworks/b9cee3-test-vwan-spoke/subnets/privateendpoints-subnet"
 private_dns_zone_ids = []
 
-# Shared Bastion jumpbox (bcgov/eo-dmi-alz-bastion-jumpbox) - one VM for all envs/tenants.
-# Tenant teams are granted Virtual Machine User Login on this VM by stacks/tenant.
-jumpbox_vm_id = "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/resourceGroups/eo-dmi-alz-bastion-jumpbox-tools/providers/Microsoft.Compute/virtualMachines/eo-dmi-alz-bastion-jumpbox-jumpbox"
-
 tags = {
   ministry    = "citz"
   application = "eo-dmi-dap-platform"

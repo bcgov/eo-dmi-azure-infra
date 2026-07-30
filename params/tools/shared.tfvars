@@ -10,7 +10,7 @@ pe_subnet_id         = "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/reso
 private_dns_zone_ids = []
 
 # Shared Bastion jumpbox (bcgov/eo-dmi-alz-bastion-jumpbox) - one VM for all envs/tenants.
-# Tenant teams are granted Virtual Machine User Login on this VM by stacks/tenant.
+# VM User Login is granted to principals in params/global/platform-access.tfvars by stacks/platform-access.
 jumpbox_vm_id = "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/resourceGroups/eo-dmi-alz-bastion-jumpbox-tools/providers/Microsoft.Compute/virtualMachines/eo-dmi-alz-bastion-jumpbox-jumpbox"
 
 tags = {

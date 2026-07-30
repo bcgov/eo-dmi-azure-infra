@@ -5,13 +5,16 @@ name: (Reusable) Detect changed stacks
 # diffs the commit range and decides which stacks need to be planned/applied.
 #
 # Outputs:
-#   tenants — JSON array of {env, tenant} objects, e.g.
-#             [{"env":"dev","tenant":"pmt"},{"env":"test","tenant":"pmt"}]
-#             Only tenant stacks whose params files changed, or ALL tenant
-#             stacks when modules/ or stacks/tenant/ itself changed.
-#   shared  — JSON array of environment names, e.g. ["dev","tools"]
-#             Only environments whose shared.tfvars changed, or ALL envs when
-#             modules/ or stacks/shared/ changed.
+#   tenants         — JSON array of {env, tenant} objects, e.g.
+#                     [{"env":"dev","tenant":"pmt"},{"env":"test","tenant":"pmt"}]
+#                     Only tenant stacks whose params files changed, or ALL tenant
+#                     stacks when modules/ or stacks/tenant/ itself changed.
+#   shared          — JSON array of environment names, e.g. ["dev","tools"]
+#                     Only environments whose shared.tfvars changed, or ALL envs when
+#                     modules/ or stacks/shared/ changed.
+#   platform_access — "true" | "false" — whether stacks/platform-access needs re-apply
+#                     (triggered by changes to stacks/platform-access/ or
+#                     params/global/platform-access.tfvars).
 #
 # The caller converts these outputs into GitHub Actions matrix jobs, so only
 # the stacks that actually changed are planned/applied — not everything.
@@ -32,6 +35,9 @@ on:
       shared:
         description: JSON array of environments whose shared stack changed.
         value: ${{ jobs.detect.outputs.shared }}
+      platform_access:
+        description: '"true" if stacks/platform-access needs re-apply, "false" otherwise.'
+        value: ${{ jobs.detect.outputs.platform_access }}
 
 jobs:
   detect:
@@ -39,6 +45,7 @@ jobs:
     outputs:
       tenants: ${{ steps.changes.outputs.tenants }}
       shared: ${{ steps.changes.outputs.shared }}
+      platform_access: ${{ steps.changes.outputs.platform_access }}
     steps:
       - uses: actions/checkout@v4
         with:

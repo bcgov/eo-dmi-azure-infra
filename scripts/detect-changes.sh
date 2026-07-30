@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Determines which tenant stacks and which environments' shared stacks need
-# to be planned/applied for this push or PR, based on changed files.
+# Determines which stacks need to be planned/applied for this push or PR,
+# based on changed files.
 #
-# Writes two JSON values to $GITHUB_OUTPUT:
-#   tenants - [{ "env": "dev", "tenant": "pmt" }, ...]
-#   shared  - ["dev", "tools", ...]   (environments whose shared stack changed)
+# Writes three values to $GITHUB_OUTPUT:
+#   tenants        - JSON array of {env, tenant} objects
+#                    e.g. [{"env":"dev","tenant":"pmt"},...]
+#   shared         - JSON array of environment names
+#                    e.g. ["dev","tools",...]
+#   platform_access - "true" | "false" — whether stacks/platform-access needs re-apply
 #
 # A change under modules/ or stacks/tenant/ affects every tenant in every
 # environment. A change under modules/, stacks/shared/, or
 # params/global/fabric-capacities.yaml affects every environment's shared
-# stack.
+# stack. A change under stacks/platform-access/ or
+# params/global/platform-access.tfvars affects the platform-access stack.
 #
 # Usage: detect-changes.sh <base-sha>
 set -euo pipefail
@@ -49,8 +53,16 @@ else
   fi
 fi
 
+if grep -qE '^(stacks/platform-access/|params/global/platform-access\.tfvars)' <<<"$CHANGED"; then
+  PLATFORM_ACCESS_JSON='true'
+else
+  PLATFORM_ACCESS_JSON='false'
+fi
+
 echo "tenants=${TENANTS_JSON}" >> "$GITHUB_OUTPUT"
 echo "shared=${SHARED_JSON}" >> "$GITHUB_OUTPUT"
+echo "platform_access=${PLATFORM_ACCESS_JSON}" >> "$GITHUB_OUTPUT"
 
 echo "Changed tenant stacks: ${TENANTS_JSON}"
 echo "Changed shared stacks: ${SHARED_JSON}"
+echo "Changed platform-access: ${PLATFORM_ACCESS_JSON}"

@@ -7,11 +7,6 @@ tenant_name         = "tenant-tmp"
 environment         = "dev"
 tenant_program_name = null
 
-# Entra ID object IDs granted Virtual Machine User Login on the shared Bastion jumpbox.
-# These principals can open a Bastion tunnel to reach the tenant's private endpoints.
-# Can be individual user object IDs or Entra group object IDs.
-jumpbox_principal_ids = ["acc400f6-00af-4401-8720-9fa3770b1845"]
-
 # Key Vault role assignments for this tenant's KV.
 # Key Vault Secrets Officer: allows the tenant team to create, update, and
 # delete secrets — appropriate for teams managing their own secrets.

@@ -43,13 +43,6 @@ module "key_vault_private_endpoint" {
 # are members of DO_PuC_Azure_Live_b9cee3_Owners, which grants Owner (with ABAC
 # condition) at management group scope. The ABAC condition allows resource-scope
 # assignments of non-privileged roles such as Virtual Machine User Login.
-resource "azurerm_role_assignment" "jumpbox_vm_login" {
-  for_each = toset(var.jumpbox_principal_ids)
-
-  scope                = var.jumpbox_vm_id
-  role_definition_name = "Virtual Machine User Login"
-  principal_id         = each.value
-}
 
 module "dedicated_fabric_capacity" {
   count = var.create_dedicated_capacity ? 1 : 0

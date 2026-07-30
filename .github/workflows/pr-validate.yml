@@ -39,6 +39,24 @@ jobs:
         -backend-config=key=tenant/${{ matrix.item.tenant }}.tfstate
         -backend-config=use_azuread_auth=true
 
+  plan-platform-access:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.platform_access == 'true'
+    uses: ./.github/workflows/.plan-apply.yml
+    with:
+      working_directory: stacks/platform-access
+      target_environment: tools
+      apply: false
+      var_file_args: >-
+        -var-file=../../params/tools/shared.tfvars
+        -var-file=../../params/global/platform-access.tfvars
+      backend_config_args: >-
+        -backend-config=resource_group_name=rg-${{ vars.MINISTRY_CODE }}-${{ vars.PROGRAM_CODE }}-tfstate-tools
+        -backend-config=storage_account_name=st${{ vars.MINISTRY_CODE }}${{ vars.PROGRAM_CODE }}toolstfstate
+        -backend-config=container_name=tfstate
+        -backend-config=key=platform-access.tfstate
+        -backend-config=use_azuread_auth=true
+
   plan-shared:
     needs: detect-changes
     if: needs.detect-changes.outputs.shared != '[]'

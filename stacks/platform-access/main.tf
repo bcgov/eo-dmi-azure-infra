@@ -16,3 +16,14 @@ resource "azurerm_role_assignment" "jumpbox_vm_login" {
   role_definition_name = "Virtual Machine User Login"
   principal_id         = each.value
 }
+
+# Reader on the Bastion host is required for `az network bastion ssh` to query
+# the Bastion's DNS name before opening the tunnel. Without it users get
+# AuthorizationFailed on Microsoft.Network/bastionHosts/read.
+resource "azurerm_role_assignment" "bastion_reader" {
+  for_each = toset(var.jumpbox_principal_ids)
+
+  scope                = var.bastion_id
+  role_definition_name = "Reader"
+  principal_id         = each.value
+}

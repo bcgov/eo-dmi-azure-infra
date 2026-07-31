@@ -10,8 +10,9 @@ pe_subnet_id         = "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/reso
 private_dns_zone_ids = []
 
 # Shared Bastion jumpbox (bcgov/eo-dmi-alz-bastion-jumpbox) - one VM for all envs/tenants.
-# VM User Login is granted to principals in params/global/platform-access.tfvars by stacks/platform-access.
+# VM User Login + Bastion Reader are granted to principals in params/global/platform-access.tfvars by stacks/platform-access.
 jumpbox_vm_id = "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/resourceGroups/eo-dmi-alz-bastion-jumpbox-tools/providers/Microsoft.Compute/virtualMachines/eo-dmi-alz-bastion-jumpbox-jumpbox"
+bastion_id    = "/subscriptions/ffc5e617-7f2d-4ddb-8b57-33fc43989a8c/resourceGroups/eo-dmi-alz-bastion-jumpbox-tools/providers/Microsoft.Network/bastionHosts/eo-dmi-alz-bastion-jumpbox-bastion"
 
 tags = {
   ministry    = "citz"

@@ -10,6 +10,6 @@ kv_rbac_assignments = []
 create_dedicated_capacity = false
 fabric_capacity_name      = null
 
-tags = {
-  tenant = "pmt"
-}
+# Do NOT set `tags` here - it would replace the platform-wide tags from
+# shared.tfvars instead of merging. `tenant` and `environment` are added
+# automatically; use `tenant_tags` for anything extra.

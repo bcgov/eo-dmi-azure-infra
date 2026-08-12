@@ -104,7 +104,13 @@ variable "fabric_capacity_name" {
 }
 
 variable "tags" {
-  description = "Common tags applied to all resources in this stack."
+  description = "Platform-wide tags from params/<env>/shared.tfvars (ministry, application). Do NOT set this in a tenant.tfvars - it would replace this map wholesale rather than merge, dropping the platform tags. Use tenant_tags instead."
+  type        = map(string)
+  default     = {}
+}
+
+variable "tenant_tags" {
+  description = "Optional per-tenant tags, merged over the platform-wide tags and over the derived tenant/environment tags. Set this in tenant.tfvars; `tenant` and `environment` are added automatically and do not need listing here."
   type        = map(string)
   default     = {}
 }

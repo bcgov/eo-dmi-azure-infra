@@ -26,6 +26,24 @@
 #   dedicated         - homed in the tenant's own platform RG, created by
 #                        stacks/tenant, not listed here.
 #
+# tags (optional):
+#   Merged over the platform-wide tags in params/<env>/shared.tfvars. Capacities
+#   created by this stack get NO tenant tag automatically - unlike stacks/tenant
+#   resources, where tenant and environment are derived - so set tags.tenant on
+#   any capacity belonging to a single tenant. The capacity is the bulk of a
+#   tenant's spend, so omitting it makes tenant-grouped cost reports misleading.
+#
+#   Azure tag values are opaque strings, max 256 chars. Cost Management groups on
+#   the whole value and does not parse it, so a composite like
+#   "bcts-dev,bcts-test" becomes one bucket you must split downstream - fine as
+#   documentation, not usable as a grouping key. Keep tags.tenant a single
+#   tenant name so it stays groupable.
+#
+#   A shared capacity is one billing line item regardless of tagging: Azure
+#   cannot tell you how much of it each tenant or environment consumed. For that
+#   use the Fabric Capacity Metrics app (CU per workspace). Tags say who to bill,
+#   not how much each used.
+#
 # home_env: the environment whose stacks/shared instance creates the capacity,
 # and whose remote state a referencing tenant must read. Prefer "tools" for any
 # capacity spanning environments: every UAMI already has Storage Blob Data
@@ -52,15 +70,26 @@ capacities:
     scope: shared-env
     home_env: tools
     sku: F4
+    # Merged over the platform-wide tags from params/<env>/shared.tfvars.
+    # Capacities created here get no tenant tag automatically (unlike
+    # stacks/tenant resources), so set it explicitly or cost reports grouped by
+    # tenant will miss this capacity - which is the bulk of a tenant's spend.
+    # No environment tag: this one is homed in tools but serves dev and test, so
+    # any single environment value would be wrong. See shared_scope below.
+    tags:
+      tenant: bcts
+      shared_scope: "bcts-dev,bcts-test" # documentation only - see note in header
     # Without this the generated name would be fccitzdapbctsnonprod, which reads
     # as a platform-wide capacity. See name_override in the header.
     name_override: "fccitzbctsnonprod"
     administrator_members:
-      # Object ID, for consistency with jumpbox_principal_ids and
-      # kv_rbac_assignments. NOTE: shared-cross-env above uses a UPN, which is
-      # the only format proven to apply here - if this entry fails on apply with
-      # an invalid-principal error, fall back to the UPN form.
-      - "acc400f6-00af-4401-8720-9fa3770b1845" # krishna
+      # MUST be UPNs, not object IDs - unlike jumpbox_principal_ids and
+      # kv_rbac_assignments elsewhere in this repo, which do take object IDs.
+      # A raw user object ID here fails the create with:
+      #   400 BadRequest: All provided principals must be existing, user or
+      #   service principals
+      # (confirmed against Microsoft.Fabric on 2026-08-12).
+      - "Krishna.Rajendharan@gov.bc.ca" # krishna
 
 
   # Example additional environment-scoped shared capacity - add as needed:
@@ -69,4 +98,4 @@ capacities:
   #   home_env: dev
   #   sku: F8
   #   administrator_members:
-  #     - "<TODO-fabric-admin-group-upn-or-object-id>"
+  #     - "<first.last@gov.bc.ca>" # UPN, not an object ID - see bcts-nonprod above

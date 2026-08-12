@@ -6,7 +6,7 @@ module "platform_rg" {
   tenant_program_name = var.tenant_program_name
   environment         = var.environment
   location            = var.location
-  tags                = var.tags
+  tags                = local.all_tags
 }
 
 module "key_vault" {
@@ -18,7 +18,7 @@ module "key_vault" {
   tenant_id           = var.azure_tenant_id
   sku_name            = var.key_vault_sku
   rbac_assignments    = var.kv_rbac_assignments
-  tags                = var.tags
+  tags                = local.all_tags
 }
 
 module "key_vault_private_endpoint" {
@@ -31,7 +31,7 @@ module "key_vault_private_endpoint" {
   target_resource_id   = module.key_vault.id
   subresource_names    = ["vault"]
   private_dns_zone_ids = var.private_dns_zone_ids
-  tags                 = var.tags
+  tags                 = local.all_tags
 }
 
 module "dedicated_fabric_capacity" {
@@ -45,5 +45,5 @@ module "dedicated_fabric_capacity" {
   location              = var.location
   sku_name              = var.dedicated_capacity_sku
   administrator_members = var.fabric_capacity_admins
-  tags                  = var.tags
+  tags                  = local.all_tags
 }

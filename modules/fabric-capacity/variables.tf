@@ -20,8 +20,13 @@ variable "sku_name" {
 }
 
 variable "administrator_members" {
-  description = "UPNs or object IDs of Fabric capacity administrators (Entra ID users or groups)."
+  description = "UPNs of Fabric capacity administrators, e.g. \"first.last@gov.bc.ca\". Use UPNs, NOT object IDs - Microsoft.Fabric rejects a raw user object ID with \"400 BadRequest: All provided principals must be existing, user or service principals\". This differs from the rest of this repo, where object IDs are preferred because UPNs change when users are renamed. Service principals are identified by their application ID. Must be non-empty: properties.administration.members is required by the ARM API."
   type        = list(string)
+
+  validation {
+    condition     = length(var.administrator_members) > 0
+    error_message = "administrator_members must contain at least one principal - the Fabric API requires properties.administration.members."
+  }
 }
 
 variable "tags" {

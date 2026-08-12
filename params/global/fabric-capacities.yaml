@@ -56,11 +56,13 @@ capacities:
     # as a platform-wide capacity. See name_override in the header.
     name_override: "fccitzbctsnonprod"
     administrator_members:
-      # Object ID, for consistency with jumpbox_principal_ids and
-      # kv_rbac_assignments. NOTE: shared-cross-env above uses a UPN, which is
-      # the only format proven to apply here - if this entry fails on apply with
-      # an invalid-principal error, fall back to the UPN form.
-      - "acc400f6-00af-4401-8720-9fa3770b1845" # krishna
+      # MUST be UPNs, not object IDs - unlike jumpbox_principal_ids and
+      # kv_rbac_assignments elsewhere in this repo, which do take object IDs.
+      # A raw user object ID here fails the create with:
+      #   400 BadRequest: All provided principals must be existing, user or
+      #   service principals
+      # (confirmed against Microsoft.Fabric on 2026-08-12).
+      - "Krishna.Rajendharan@gov.bc.ca" # krishna
 
 
   # Example additional environment-scoped shared capacity - add as needed:
@@ -69,4 +71,4 @@ capacities:
   #   home_env: dev
   #   sku: F8
   #   administrator_members:
-  #     - "<TODO-fabric-admin-group-upn-or-object-id>"
+  #     - "<first.last@gov.bc.ca>" # UPN, not an object ID - see bcts-nonprod above

@@ -1,4 +1,22 @@
 locals {
+  # Platform-wide tags (params/<env>/shared.tfvars) plus the tenant/environment
+  # identity, plus any per-tenant extras.
+  #
+  # tenant and environment are derived, not hand-written: a tenant.tfvars that
+  # set its own `tags` map would REPLACE var.tags wholesale rather than merge
+  # with it (Terraform does not merge maps across -var-file arguments, and
+  # deploy.yml passes shared.tfvars first, tenant.tfvars second), silently
+  # dropping ministry/application from every tenant resource. Use tenant_tags
+  # for anything extra - it merges instead of overriding.
+  all_tags = merge(
+    var.tags,
+    {
+      tenant      = var.tenant_name
+      environment = var.environment
+    },
+    var.tenant_tags,
+  )
+
   # Naming convention: resource-ministry-tenant-tenant_program-environment
   # for this tenant's own resources (NOT the platform-wide ministry-program
   # convention used below for the remote-state lookup). See

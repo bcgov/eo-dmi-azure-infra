@@ -24,9 +24,9 @@ create_dedicated_capacity = false
 # stacks/shared being applied in the tools environment during CI smoke tests).
 fabric_capacity_name = null
 
-tags = {
-  tenant = "tenant-tmp"
-}
+# Do NOT set `tags` here - it would replace the platform-wide tags from
+# shared.tfvars instead of merging. `tenant` and `environment` are added
+# automatically; use `tenant_tags` for anything extra.
 
 # ci test
 

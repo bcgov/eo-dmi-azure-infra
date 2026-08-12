@@ -4,19 +4,33 @@
 # create_dedicated_capacity = true in the tenant's tenant.tfvars.
 #
 # Keys here are logical names, not Azure resource names - stacks/shared
-# builds the actual Azure name as fc-<ministry_code>-<program_code>-<key>
-# (see docs/platform-guide.md "Naming conventions"). Reference a key by its
-# logical name in a tenant's fabric_capacity_name (tenant.tfvars).
+# builds the actual Azure name as fc<ministry_code><program_code><key> with
+# hyphens stripped (see docs/platform-guide.md "Naming conventions"). Reference
+# a key by its logical name in a tenant's fabric_capacity_name (tenant.tfvars).
+#
+# name_override (optional):
+#   Replaces the generated name outright. Use it when a capacity belongs to a
+#   single tenant rather than the platform - the default name embeds
+#   program_code, which misleadingly reads as platform-wide. Keep overrides in
+#   the fc<ministry_code><tenant><qualifier> shape, all lowercase alphanumeric,
+#   and check the name is not already taken by another entry.
+#
+#   WARNING: capacity "name" is ForceNew. Changing or removing an override on an
+#   existing capacity destroys and recreates it. Set it once, at creation.
 #
 # scope:
 #   shared-cross-env  - one capacity, usable by tenants in any environment.
 #                        Typically homed in tools.
 #   shared-env        - one capacity per environment, usable by all tenants
-#                        in that environment (or) by specific tenants in that environment. Typically homed in the environment.
-#                         For a non-prod capacity that is shared between dev and test, use scope: shared-env and home_env: dev. 
-#                          For a prod capacity that is shared between prod and pre-prod, use scope: shared-env and home_env: prod.
+#                        in that environment (or) by specific tenants in that environment.
 #   dedicated         - homed in the tenant's own platform RG, created by
 #                        stacks/tenant, not listed here.
+#
+# home_env: the environment whose stacks/shared instance creates the capacity,
+# and whose remote state a referencing tenant must read. Prefer "tools" for any
+# capacity spanning environments: every UAMI already has Storage Blob Data
+# Reader on the tools state account, whereas homing in dev would require a new
+# test -> dev grant in stacks/bootstrap/identity, a manual human-applied stack.
 
 
 capacities:

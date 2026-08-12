@@ -23,7 +23,7 @@ terraform.rc
 
 # Scratchpad/notes
 scratch.md
-scratch-macos.md
+scratch-*.md
 
 # Claude/AI tooling (local only)
 .claude/

@@ -10,5 +10,6 @@ jumpbox_principal_ids = [
   "c2c84491-e623-4f89-b6be-7e36bff00374", # jakia
   "8ec30563-1186-4a45-94d4-a7f8403924e7", # wei
   "acc400f6-00af-4401-8720-9fa3770b1845", # krishna
+  "8a0af36a-54cd-4432-8a5e-3a2b55209eae", # sree (bcts)
 ]
 

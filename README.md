@@ -79,10 +79,8 @@ environment = "dev"
 #   rg-citz-<tenant>-<tenant_program_name>-dev  instead of  rg-citz-<tenant>-dev
 # tenant_program_name = "pdt"
 
-# Entra ID object IDs granted Virtual Machine User Login on the shared Bastion jumpbox.
-# These principals can open a Bastion tunnel to reach the tenant's private endpoints.
-# Accepts individual user object IDs or Entra group object IDs (preferred when a group exists).
-jumpbox_principal_ids = ["<object-id-1>", "<object-id-2>"]
+# NOTE: jumpbox access is NOT configured here. It is granted platform-wide via
+# jumpbox_principal_ids in params/global/platform-access.tfvars — see step 2b below.
 
 # Key Vault role assignments for this tenant's KV.
 # Key Vault Secrets Officer: create, update, delete secrets — correct for tenant teams.
@@ -104,21 +102,40 @@ tags = {
 }
 ```
 
+### 2b. Grant the tenant team jumpbox access
+
+The tenant's Key Vault has `public_network_access_enabled = false` and is reachable only
+through its private endpoint, so a Key Vault role assignment on its own is not enough — the
+team also needs a Bastion tunnel to the shared tools jumpbox. That is granted centrally, not
+per-tenant. Add their object IDs to `params/global/platform-access.tfvars`:
+
+```hcl
+jumpbox_principal_ids = [
+  # ...existing principals...
+  "<object-id>", # <name>
+]
+```
+
+`stacks/platform-access` grants each principal `Virtual Machine User Login` on the jumpbox VM
+and `Reader` on the Bastion host. Skipping this step is the most common cause of "I have
+Secrets Officer but can't read the vault" — the vault loads in the portal, the secrets list
+does not.
+
 ### 3. Open a PR
 
 ```bash
 git checkout -b onboard/<tenant>
-git add params/dev/tenants/<tenant>/
+git add params/dev/tenants/<tenant>/ params/global/platform-access.tfvars
 git commit -m "onboard <tenant> to dev"
 git push origin onboard/<tenant>
 # open PR on GitHub
 ```
 
-`pr-validate.yml` detects the new directory and runs `terraform plan`. Review the plan in the PR checks — it should show 3 resources: platform RG, Key Vault, and KV private endpoint.
+`pr-validate.yml` detects the new directory and runs `terraform plan`. Review the plan in the PR checks — it should show 3 resources: platform RG, Key Vault, and KV private endpoint, plus one role assignment per `kv_rbac_assignments` entry.
 
 ### 4. Merge
 
-`deploy.yml` applies the plan. The tenant team can access their Key Vault immediately via the Bastion jumpbox tunnel.
+`deploy.yml` applies the plan. Once both the tenant stack and `stacks/platform-access` have applied, the tenant team can reach their Key Vault via the Bastion jumpbox tunnel.
 
 ---
 

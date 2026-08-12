@@ -32,5 +32,11 @@ module "fabric_capacity" {
   location              = var.location
   sku_name              = each.value.sku
   administrator_members = each.value.administrator_members
-  tags                  = var.tags
+
+  # Platform-wide tags from params/<env>/shared.tfvars, plus optional per-entry
+  # tags from the registry. A capacity created here is not owned by any tenant
+  # stack, so it gets no tenant tag automatically the way stacks/tenant
+  # resources do - set tags.tenant in the registry entry for any capacity that
+  # belongs to one tenant, or cost reports grouped by tenant will miss it.
+  tags = merge(var.tags, try(each.value.tags, {}))
 }

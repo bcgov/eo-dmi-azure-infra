@@ -42,6 +42,27 @@ capacities:
       - "Krishna.Rajendharan@gov.bc.ca" # TODO: replace with team Entra group object ID once group is set up
 
 
+  bcts-nonprod:
+    # Shared by the bcts dev and test tenants - one tenant across two
+    # environments, NOT shared across tenants. Homed in tools rather than dev so
+    # both environments' UAMIs can resolve its ID via remote state: every UAMI
+    # already has Storage Blob Data Reader on the tools state account, whereas a
+    # dev-homed capacity would need a new test -> dev grant in
+    # stacks/bootstrap/identity, which is a manual human-applied stack.
+    scope: shared-env
+    home_env: tools
+    sku: F4
+    # Without this the generated name would be fccitzdapbctsnonprod, which reads
+    # as a platform-wide capacity. See name_override in the header.
+    name_override: "fccitzbctsnonprod"
+    administrator_members:
+      # Object ID, for consistency with jumpbox_principal_ids and
+      # kv_rbac_assignments. NOTE: shared-cross-env above uses a UPN, which is
+      # the only format proven to apply here - if this entry fails on apply with
+      # an invalid-principal error, fall back to the UPN form.
+      - "acc400f6-00af-4401-8720-9fa3770b1845" # krishna
+
+
   # Example additional environment-scoped shared capacity - add as needed:
   # shared-dev:
   #   scope: shared-env

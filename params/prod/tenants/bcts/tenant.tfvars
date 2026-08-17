@@ -31,8 +31,11 @@ kv_rbac_assignments = [
 # added by hand in the Fabric portal.
 create_dedicated_capacity = true
 dedicated_capacity_sku    = "F4"
-fabric_capacity_admins    = ["Krishna.Rajendharan@gov.bc.ca"]
-fabric_capacity_name      = null
+fabric_capacity_admins = [
+  "Krishna.Rajendharan@gov.bc.ca", # krishna
+  "KRAJENDH@C.GOV.BC.CA",          # krajendh.c (elevated account)
+]
+fabric_capacity_name = null
 
 # Do NOT set `tags` here - it would replace the platform-wide tags from
 # shared.tfvars instead of merging. `tenant` and `environment` are added

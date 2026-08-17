@@ -204,15 +204,19 @@ capacities:
   shared-cross-env:   # existing
     ...
 
-  shared-dev:         # new — homed in dev, usable by all dev tenants
+  shared-dev:         # new — usable by all dev tenants
     scope: shared-env
-    home_env: dev
+    home_env: tools
     sku: F8
     administrator_members:
-      - "fabric-platform-admins@gov.bc.ca"
+      - "first.last@gov.bc.ca"   # UPN, NOT an object ID
 ```
 
-The logical key (`shared-dev`) becomes the Azure resource name as `fc-citz-dap-shared-dev`. To have a tenant use the new capacity, update their `tenant.tfvars` with `fabric_capacity_name = "shared-dev"` — that PR must be merged after the capacity exists.
+The logical key becomes the Azure name as `fc<ministry><program><key>` with hyphens stripped — `shared-dev` gives `fccitzdapshareddev`. A capacity belonging to a single tenant can set `name_override` to be named after the tenant instead; see the header of `fabric-capacities.yaml`.
+
+Prefer `home_env: tools` for any capacity spanning environments. A referencing tenant reads that environment's `stacks/shared` state, and every UAMI already has `Storage Blob Data Reader` on the tools state account — homing elsewhere needs a new cross-subscription grant in `stacks/bootstrap/identity`.
+
+To have a tenant use the new capacity, update their `tenant.tfvars` with `fabric_capacity_name = "shared-dev"` — that PR must be merged **after** the capacity exists, since `deploy.yml` runs `apply-shared` and `apply-tenants` in parallel.
 
 ---
 
@@ -230,6 +234,38 @@ Replace all `<TODO-...>` placeholders with real values:
 4. **`params/bootstrap/*.tfvars`** — subscription IDs, Bastion and jumpbox resource IDs, `ministry_code`, `program_code`, `github_repo`.
 
 `ministry_code` and `program_code` must be identical across every `*.tfvars` — they are used to compute state storage account names, and a mismatch will cause RBAC grants to target the wrong accounts.
+
+### Step 0 — Register resource providers (once per subscription)
+
+Azure blocks resource creation in a namespace the subscription has never used. The azurerm provider auto-registers a "core" set, but **`Microsoft.Fabric` is not in it** — so without this, capacity creation fails with:
+
+```
+409 Conflict — MissingSubscriptionRegistration: The subscription is not
+registered to use namespace 'Microsoft.Fabric'
+```
+
+That surfaces *mid-apply*, after the resource group and Key Vault are already created, leaving a half-built tenant that needs a re-run. Register up front, for every subscription:
+
+```bash
+for SUB in <tools-sub> <dev-sub> <test-sub> <prod-sub>; do
+  for NS in Microsoft.Fabric Microsoft.KeyVault Microsoft.Network \
+            Microsoft.Storage Microsoft.ManagedIdentity; do
+    az provider register --namespace "$NS" --subscription "$SUB"
+  done
+done
+```
+
+Registration is asynchronous and idempotent — re-running it on an already-registered namespace is a no-op. Confirm all four before continuing; it usually takes 1–3 minutes:
+
+```bash
+for SUB in <tools-sub> <dev-sub> <test-sub> <prod-sub>; do
+  echo "--- $SUB ---"
+  az provider list --subscription "$SUB" \
+    --query "[?namespace=='Microsoft.Fabric'].{ns:namespace,state:registrationState}" -o table
+done
+```
+
+Only `Microsoft.Fabric` genuinely needs this today — the others are in the provider's core set and are listed so a brand-new subscription is covered explicitly. This is deliberately a manual step rather than Terraform: `azurerm_resource_provider_registration` **unregisters the namespace subscription-wide on destroy**, which would affect Fabric capacities owned outside this repo, and `resource_providers_to_register` in the provider block would re-check on every apply.
 
 ### Step 1 — Create PE subnet (test and prod only)
 
@@ -361,6 +397,17 @@ az vm start \
 
 The Bastion host itself may also have been deleted by the nightly automation runbook. If so, trigger the `Create-BastionHost` runbook manually in the Azure Automation account (`eo-dmi-alz-bastion-jumpbox-jumpbox-automation` in the tools subscription).
 
-**Private endpoint not resolving** — `private_dns_zone_ids` is empty (default), which assumes ALZ DINE policy auto-registers private endpoints. If that policy is not assigned to the subscription, populate `private_dns_zone_ids` in `params/global/network-reference.yaml` and copy the values into the relevant `*.tfvars` files, then re-apply.
+**Private endpoint not resolving** — `private_dns_zone_ids` is empty (default), which assumes ALZ DINE policy auto-registers private endpoints. The policy creates a `deployedByPolicy` zone group on the endpoint, asynchronously — expect a lag of minutes after the apply. Check with:
+
+```bash
+az network private-endpoint dns-zone-group list \
+  --endpoint-name pe-kv-<ministry>-<tenant>-<env> -g rg-<ministry>-<tenant>-<env> -o table
+```
+
+If nothing appears after ~30 minutes, the policy likely isn't assigned at a scope covering that subscription — it is confirmed working in all four (tools, dev, test, prod). Ask the platform team to extend the assignment, or register the endpoint manually. Note that `modules/private-endpoint` sets `ignore_changes = [private_dns_zone_group]`, so populating `private_dns_zone_ids` has **no effect on an existing endpoint**.
+
+**`MissingSubscriptionRegistration` / 409 creating a Fabric capacity** — the subscription has never used `Microsoft.Fabric`, which is not in the azurerm provider's auto-registered "core" set. See [Step 0](#step-0--register-resource-providers-once-per-subscription). Register, wait for `Registered`, then re-run the failed job — resources created before the failure are already in state, so the re-run only adds the capacity.
+
+**`All provided principals must be existing, user or service principals`** — `administrator_members` / `fabric_capacity_admins` was given an object ID. Fabric capacity admins must be **UPNs** (`first.last@gov.bc.ca`), unlike `jumpbox_principal_ids` and `kv_rbac_assignments`, which take object IDs. `terraform plan` cannot catch this; it only fails at apply.
 
 **`azurerm_fabric_capacity` not found / provider error** — the `azurerm ~> 4.0` constraint may pin a version without this resource. Upgrade the constraint or switch `modules/fabric-capacity/main.tf` to `azapi_resource` targeting `Microsoft.Fabric/capacities@2023-11-01`.

@@ -7,8 +7,17 @@
 # does not change as tenants are onboarded.
 #
 # private_dns_zone_ids: leave empty — ALZ DINE policy auto-registers private
-# endpoints at a management group level above b9cee3. Confirmed working in
-# tools and dev with empty list.
+# endpoints at a management group level above b9cee3, creating a
+# "deployedByPolicy" zone group on each endpoint a few minutes after it is
+# created. Confirmed working with an empty list in all four environments
+# (tools, dev, test, prod) as of 2026-08-12.
+#
+# modules/private-endpoint sets ignore_changes = [private_dns_zone_group], so
+# these IDs are NOT reconciled on an existing endpoint - populating this list
+# only affects endpoints created afterwards. Verify registration with:
+#   az network private-endpoint dns-zone-group list \
+#     --endpoint-name pe-kv-<ministry>-<tenant>-<env> \
+#     -g rg-<ministry>-<tenant>-<env> -o table
 
 environments:
   tools:

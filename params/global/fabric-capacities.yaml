@@ -90,6 +90,7 @@ capacities:
       #   service principals
       # (confirmed against Microsoft.Fabric on 2026-08-12).
       - "Krishna.Rajendharan@gov.bc.ca" # krishna
+      - "KRAJENDH@C.GOV.BC.CA"          # krajendh.c (elevated account)
 
 
   # Example additional environment-scoped shared capacity - add as needed:

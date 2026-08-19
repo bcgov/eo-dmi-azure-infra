@@ -267,7 +267,7 @@ done
 
 Only `Microsoft.Fabric` genuinely needs this today — the others are in the provider's core set and are listed so a brand-new subscription is covered explicitly. This is deliberately a manual step rather than Terraform: `azurerm_resource_provider_registration` **unregisters the namespace subscription-wide on destroy**, which would affect Fabric capacities owned outside this repo, and `resource_providers_to_register` in the provider block would re-check on every apply.
 
-### Step 1 — Create PE subnet (test and prod only)
+### Step 1 — Create PE subnet (once per subscription)
 
 Run this before `state-backend` for subscriptions whose spoke VNet has no PE subnet yet:
 

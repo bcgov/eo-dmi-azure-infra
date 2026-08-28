@@ -17,13 +17,30 @@ resource "azurerm_role_assignment" "jumpbox_vm_login" {
   principal_id         = each.value
 }
 
-# Reader on the Bastion host is required for `az network bastion ssh` to query
-# the Bastion's DNS name before opening the tunnel. Without it users get
-# AuthorizationFailed on Microsoft.Network/bastionHosts/read.
+locals {
+  # The Bastion's resource group, derived from bastion_id rather than taken as
+  # its own variable so the two can never drift apart.
+  bastion_rg_id = regex("^(/subscriptions/[^/]+/resourceGroups/[^/]+)", var.bastion_id)[0]
+}
+
+# Reader is required for `az network bastion ssh` to query the Bastion's DNS
+# name before opening the tunnel. Without it users get AuthorizationFailed on
+# Microsoft.Network/bastionHosts/read.
+#
+# Scoped to the Bastion's RESOURCE GROUP, not the Bastion host itself. Azure
+# Bastion has no stop/deallocate, so the host is deleted nightly to avoid
+# charges and recreated by the Create-BastionHost runbook. A recreated host is a
+# new resource, and role assignments scoped to a resource are destroyed with it
+# - so host-scoped grants silently vanish every night. The resource group
+# persists, and Reader on it still confers bastionHosts/read by inheritance.
+#
+# This also covers the virtualMachines/read and networkInterfaces/read that
+# Microsoft's Bastion docs list as prerequisites, since the jumpbox VM and its
+# NIC live in the same resource group.
 resource "azurerm_role_assignment" "bastion_reader" {
   for_each = toset(var.jumpbox_principal_ids)
 
-  scope                = var.bastion_id
+  scope                = local.bastion_rg_id
   role_definition_name = "Reader"
   principal_id         = each.value
 }

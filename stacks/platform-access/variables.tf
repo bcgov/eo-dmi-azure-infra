@@ -9,7 +9,7 @@ variable "jumpbox_vm_id" {
 }
 
 variable "bastion_id" {
-  description = "Resource ID of the shared Azure Bastion host. Principals need Reader on this resource to run az network bastion ssh."
+  description = "Resource ID of the shared Azure Bastion host. Used to derive the Bastion's resource group, which is what Reader is granted on - see the comment in main.tf on why the grant is not scoped to the host itself."
   type        = string
 }
 

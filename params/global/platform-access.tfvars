@@ -5,6 +5,10 @@
 # Use object IDs (not UPNs) — UPNs change when users are renamed.
 # To find an object ID: az ad user show --id email@gov.bc.ca --query id -o tsv
 #
+# Each principal gets Virtual Machine User Login on the jumpbox VM, and Reader on
+# the Bastion's RESOURCE GROUP - not the Bastion host, which is deleted nightly to
+# avoid charges. See stacks/platform-access/main.tf.
+#
 # Changes here trigger an automatic re-apply of stacks/platform-access via CI.
 jumpbox_principal_ids = [
   "c2c84491-e623-4f89-b6be-7e36bff00374", # jakia

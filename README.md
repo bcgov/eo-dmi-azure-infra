@@ -117,9 +117,10 @@ jumpbox_principal_ids = [
 ```
 
 `stacks/platform-access` grants each principal `Virtual Machine User Login` on the jumpbox VM
-and `Reader` on the Bastion host. Skipping this step is the most common cause of "I have
-Secrets Officer but can't read the vault" — the vault loads in the portal, the secrets list
-does not.
+and `Reader` on the Bastion's **resource group** (`eo-dmi-alz-bastion-jumpbox-tools`), not on
+the Bastion host itself — see [Why Reader is scoped to the resource group](#why-reader-is-scoped-to-the-resource-group).
+Skipping this step is the most common cause of "I have Secrets Officer but can't read the
+vault" — the vault loads in the portal, the secrets list does not.
 
 ### 3. Open a PR
 
@@ -396,6 +397,29 @@ az vm start \
 ```
 
 The Bastion host itself may also have been deleted by the nightly automation runbook. If so, trigger the `Create-BastionHost` runbook manually in the Azure Automation account (`eo-dmi-alz-bastion-jumpbox-jumpbox-automation` in the tools subscription).
+
+**`AuthorizationFailed` on `Microsoft.Network/bastionHosts/read`** — the user isn't in `jumpbox_principal_ids`, or `stacks/platform-access` hasn't applied since they were added. Check:
+
+```bash
+az role assignment list \
+  --scope /subscriptions/<tools-sub>/resourceGroups/eo-dmi-alz-bastion-jumpbox-tools \
+  --query "[?roleDefinitionName=='Reader'].principalName" -o table
+```
+
+> Re-running `Create-BastionHost` does **not** fix this. The Bastion existing and the user having permission on it are different problems, and the error text ("or the scope is invalid") reads like a missing resource, which sends people down the wrong path. Re-apply `stacks/platform-access` instead.
+
+Also confirm the user is in the right subscription context — `az network bastion ssh` resolves `--resource-group` against the active subscription, so with dev selected the tools resource group appears not to exist and surfaces the same error. `scripts/bastion-proxy.sh` passes `--subscription` explicitly for this reason.
+
+### Why Reader is scoped to the resource group
+
+Azure Bastion has no stop/deallocate — a deployed host bills continuously — so the nightly runbook **deletes** it and `Create-BastionHost` recreates it each morning at 8am.
+
+A recreated Bastion is a new resource, and role assignments scoped to a resource are destroyed with it. Grants scoped to the Bastion host therefore vanished every night. `stacks/platform-access` scopes `Reader` to `eo-dmi-alz-bastion-jumpbox-tools` instead. The resource group is never deleted, so the grant survives, and Reader on it still confers `bastionHosts/read` by inheritance — along with the `virtualMachines/read` and `networkInterfaces/read` that Microsoft's Bastion documentation lists as prerequisites, since the jumpbox VM and its NIC live in the same group.
+
+Two known gaps:
+
+- **`stacks/bootstrap/identity` still scopes the UAMIs' Bastion Reader to the host**, so those assignments die nightly too.
+- **Starting a deallocated jumpbox** needs `Microsoft.Compute/virtualMachines/start/action`, which neither `Reader` nor `Virtual Machine User Login` grants. A user who arrives before anyone has started the VM cannot start it themselves. `Desktop Virtualization Power On Contributor` grants exactly that plus reads, with no destructive actions, if needed.
 
 **Private endpoint not resolving** — `private_dns_zone_ids` is empty (default), which assumes ALZ DINE policy auto-registers private endpoints. The policy creates a `deployedByPolicy` zone group on the endpoint, asynchronously — expect a lag of minutes after the apply. Check with:
 

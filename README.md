@@ -414,9 +414,7 @@ Also confirm the user is in the right subscription context — `az network basti
 
 Azure Bastion has no stop/deallocate — a deployed host bills continuously — so the nightly runbook **deletes** it and `Create-BastionHost` recreates it each morning at 8am.
 
-A recreated Bastion is a new resource, and role assignments scoped to a resource are destroyed with it. Grants scoped to the Bastion host therefore vanished every night, and the failure was easy to misread: the Bastion looked healthy (`provisioningState: Succeeded`) while every non-admin got `AuthorizationFailed`. Platform team members never saw it, because they inherit access from the tools subscription Owners group.
-
-`stacks/platform-access` scopes `Reader` to `eo-dmi-alz-bastion-jumpbox-tools` instead. The resource group is never deleted, so the grant survives, and Reader on it still confers `bastionHosts/read` by inheritance — along with the `virtualMachines/read` and `networkInterfaces/read` that Microsoft's Bastion documentation lists as prerequisites, since the jumpbox VM and its NIC live in the same group.
+A recreated Bastion is a new resource, and role assignments scoped to a resource are destroyed with it. Grants scoped to the Bastion host therefore vanished every night. `stacks/platform-access` scopes `Reader` to `eo-dmi-alz-bastion-jumpbox-tools` instead. The resource group is never deleted, so the grant survives, and Reader on it still confers `bastionHosts/read` by inheritance — along with the `virtualMachines/read` and `networkInterfaces/read` that Microsoft's Bastion documentation lists as prerequisites, since the jumpbox VM and its NIC live in the same group.
 
 Two known gaps:
 

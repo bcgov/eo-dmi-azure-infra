@@ -420,8 +420,8 @@ A recreated Bastion is a new resource, and role assignments scoped to a resource
 
 Two known gaps:
 
-- **`stacks/bootstrap/identity` still scopes the UAMIs' Bastion Reader to the host**, so those assignments die nightly too. Harmless today only because the UAMIs inherit Owners on the tools subscription; the block is effectively dead code.
-- **Starting a deallocated jumpbox** needs `Microsoft.Compute/virtualMachines/start/action`, which neither `Reader` nor `Virtual Machine User Login` grants. A user who arrives before anyone has started the VM cannot start it themselves. `Desktop Virtualization Power On Contributor` grants exactly that plus reads, with no destructive actions, if this becomes a problem.
+- **`stacks/bootstrap/identity` still scopes the UAMIs' Bastion Reader to the host**, so those assignments die nightly too.
+- **Starting a deallocated jumpbox** needs `Microsoft.Compute/virtualMachines/start/action`, which neither `Reader` nor `Virtual Machine User Login` grants. A user who arrives before anyone has started the VM cannot start it themselves. `Desktop Virtualization Power On Contributor` grants exactly that plus reads, with no destructive actions, if needed.
 
 **Private endpoint not resolving** — `private_dns_zone_ids` is empty (default), which assumes ALZ DINE policy auto-registers private endpoints. The policy creates a `deployedByPolicy` zone group on the endpoint, asynchronously — expect a lag of minutes after the apply. Check with:
 

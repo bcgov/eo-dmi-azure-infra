@@ -311,7 +311,14 @@ subscription for central management. Each UAMI gets:
 - `Storage Blob Data Contributor` on its **own** env's state storage account
 - `Storage Blob Data Reader` on **tools'** state storage account (needed for cross-env
   capacity lookups via `terraform_remote_state`)
-- `Reader` + `Virtual Machine User Login` on the tools Bastion + jumpbox VM
+- `Reader` + `Virtual Machine User Login` on the tools Bastion + jumpbox VM.
+  **Note:** the `Reader` half is scoped to the Bastion *host*, which the nightly
+  runbook deletes and recreates — so that assignment is destroyed every night and
+  the block is effectively dead code. It goes unnoticed because the UAMIs inherit
+  access from the tools subscription Owners group. `stacks/platform-access` was
+  moved to resource-group scope for exactly this reason; this stack should follow,
+  but it is human-applied so the change needs a manual apply. See the README,
+  "Why Reader is scoped to the resource group".
 - Three GitHub OIDC federated credentials (for its GitHub Environment, for `refs/heads/main`,
   and for pull requests)
 

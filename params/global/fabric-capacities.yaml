@@ -59,7 +59,6 @@ capacities:
     administrator_members:
       - "Krishna.Rajendharan@gov.bc.ca" # TODO: replace with team Entra group object ID once group is set up
 
-
   bcts-nonprod:
     # Shared by the bcts dev and test tenants - one tenant across two
     # environments, NOT shared across tenants. Homed in tools rather than dev so
@@ -92,6 +91,17 @@ capacities:
       - "Krishna.Rajendharan@gov.bc.ca" # krishna
       - "KRAJENDH@C.GOV.BC.CA"          # krajendh.c (elevated account)
 
+  bcts-shared-cross-env:
+    scope: shared-cross-env
+    home_env: tools
+    sku: F8
+    tags:
+      tenant: bcts
+      shared_scope: "bcts-dev,bcts-test,bcts-prod"
+    name_override: "fccitzbcts"
+    administrator_members:
+      - "Krishna.Rajendharan@gov.bc.ca"
+      - "KRAJENDH@C.GOV.BC.CA"
 
   # Example additional environment-scoped shared capacity - add as needed:
   # shared-dev:

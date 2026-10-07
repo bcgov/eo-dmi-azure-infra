@@ -20,13 +20,13 @@ kv_rbac_assignments = [
   }
 ]
 
-# Shares fccitzbctsnonprod (F4, homed in tools) with the dev environment.
+# Uses fccitzbcts (F8 homed in tools), shared by bcts dev, test and prod
 # See params/global/fabric-capacities.yaml. Resolved to a resource ID via
 # stacks/shared's remote state - exposed as the fabric_capacity_id output for
 # later workspace-assignment automation. Assigning workspaces to the capacity is
 # currently manual, in the Fabric portal.
 create_dedicated_capacity = false
-fabric_capacity_name      = "bcts-nonprod"
+fabric_capacity_name      = "bcts-shared-cross-env"
 
 # Do NOT set `tags` here - it would replace the platform-wide tags from
 # shared.tfvars instead of merging. `tenant` and `environment` are added

@@ -60,6 +60,12 @@ variable "private_dns_zone_ids" {
 
 # --- Key Vault ---------------------------------------------------------------
 
+variable "create_key_vault" {
+  description = "Whether to create the tenant's Key Vault and its private endpoint. Set false for a tenant that needs only the platform RG and a Fabric capacity. false -> true is safe (creates the vault). true -> false DESTROYS the vault; with purge protection the name then stays reserved in soft-delete for 90 days. kv_rbac_assignments must be empty when false - see the precondition in outputs.tf."
+  type        = bool
+  default     = true
+}
+
 variable "key_vault_sku" {
   description = "Key Vault SKU."
   type        = string

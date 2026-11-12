@@ -5,13 +5,20 @@ output "platform_resource_group_name" {
 
 
 output "key_vault_id" {
-  description = "Resource ID of the tenant's Key Vault."
-  value       = module.key_vault.id
+  description = "Resource ID of the tenant's Key Vault, or null when create_key_vault = false."
+  value       = var.create_key_vault ? module.key_vault[0].id : null
+
+  # Fails the plan rather than silently dropping role assignments: with no vault
+  # there is nothing to assign kv_rbac_assignments on.
+  precondition {
+    condition     = var.create_key_vault || length(var.kv_rbac_assignments) == 0
+    error_message = "kv_rbac_assignments is set but create_key_vault = false - there is no vault to assign roles on. Empty the list or set create_key_vault = true."
+  }
 }
 
 output "key_vault_uri" {
-  description = "URI of the tenant's Key Vault (reachable only via the private endpoint)."
-  value       = module.key_vault.vault_uri
+  description = "URI of the tenant's Key Vault (reachable only via the private endpoint), or null when create_key_vault = false."
+  value       = var.create_key_vault ? module.key_vault[0].vault_uri : null
 }
 
 output "fabric_capacity_id" {

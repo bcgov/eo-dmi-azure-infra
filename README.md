@@ -82,6 +82,11 @@ environment = "dev"
 # NOTE: jumpbox access is NOT configured here. It is granted platform-wide via
 # jumpbox_principal_ids in params/global/platform-access.tfvars — see step 2b below.
 
+# Optional: skip the Key Vault and its private endpoint (RG + capacity only).
+# Safe to turn on later; turning it off destroys the vault. kv_rbac_assignments
+# must then be empty.
+# create_key_vault = false
+
 # Key Vault role assignments for this tenant's KV.
 # Key Vault Secrets Officer: create, update, delete secrets — correct for tenant teams.
 # Do NOT use Key Vault Administrator — that also controls vault networking and access policy,
@@ -132,7 +137,7 @@ git push origin onboard/<tenant>
 # open PR on GitHub
 ```
 
-`pr-validate.yml` detects the new directory and runs `terraform plan`. Review the plan in the PR checks — it should show 3 resources: platform RG, Key Vault, and KV private endpoint, plus one role assignment per `kv_rbac_assignments` entry.
+`pr-validate.yml` detects the new directory and runs `terraform plan`. Review the plan in the PR checks — it should show 3 resources: platform RG, Key Vault, and KV private endpoint, plus one role assignment per `kv_rbac_assignments` entry (just the RG when `create_key_vault = false`; add one for a dedicated capacity).
 
 ### 4. Merge
 

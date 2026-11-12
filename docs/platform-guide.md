@@ -353,8 +353,8 @@ resources for one tenant in one environment:
 | Resource | Name | Notes |
 |---|---|---|
 | Platform RG | `rg-<ministry>-<tenant>-[tenant_program-]<env>` | Holds all Terraform-managed resources |
-| Key Vault | `kv-<ministry>-<tenant>-[tenant_program-]<env>` | Private, RBAC-auth, in platform RG |
-| KV Private Endpoint | `pe-kv-<ministry>-<tenant>-[tenant_program-]<env>` | Into shared `snet-pe` |
+| Key Vault | `kv-<ministry>-<tenant>-[tenant_program-]<env>` | Private, RBAC-auth, in platform RG. Only if `create_key_vault = true` (the default) |
+| KV Private Endpoint | `pe-kv-<ministry>-<tenant>-[tenant_program-]<env>` | Into shared `snet-pe`. Created and removed together with the Key Vault |
 | Workspace RG | `rg-<ministry>-<tenant>-[tenant_program-]<env>-ws` | Empty; tenant team gets Contributor |
 | Dedicated Fabric capacity | `fc-<ministry>-<tenant>-[tenant_program-]<env>` | Only if `create_dedicated_capacity = true` |
 | Jumpbox VM Login | *(role assignment on shared VM)* | Grants `Virtual Machine User Login` to `workspace_owners_group_object_id` on the shared Bastion jumpbox so the tenant team can tunnel to their private endpoints. VM managed in `bcgov/eo-dmi-alz-bastion-jumpbox`; VM ID supplied via `jumpbox_vm_id` in `params/<env>/shared.tfvars`. **Temporarily commented out** in `stacks/tenant/main.tf` — requires `stacks/bootstrap/identity` to be re-applied with the `jumpbox_rbac_admin` assignments first (see §8b and §10 Step 4 note). |
@@ -435,7 +435,8 @@ The onboarding record for one tenant in one environment. Contains:
 | `tenant_program_name` | *(optional)* Sub-program segment added to every resource name if set — see [Naming conventions](#6-naming-conventions) |
 | `environment` | Must match the directory env |
 | `workspace_owners_group_object_id` | Entra ID group object ID for the tenant's workspace RG |
-| `kv_rbac_assignments` | Roles to grant on the tenant's Key Vault |
+| `create_key_vault` | *(optional, default `true`)* `false` skips the Key Vault and its private endpoint — RG + capacity only. Turning it on later is safe; turning it off destroys the vault (purge protection keeps the name reserved for 90 days) |
+| `kv_rbac_assignments` | Roles to grant on the tenant's Key Vault. Must be empty when `create_key_vault = false` |
 | `create_dedicated_capacity` | `true` to create a dedicated Fabric capacity; `false` to use shared |
 | `fabric_capacity_name` | Logical key from `fabric-capacities.yaml` when using shared (e.g. `"shared-cross-env"`, not the Azure resource name) |
 | `dedicated_capacity_sku` | Fabric SKU if `create_dedicated_capacity = true` |

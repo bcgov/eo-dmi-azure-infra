@@ -79,6 +79,11 @@ environment = "dev"
 #   rg-citz-<tenant>-<tenant_program_name>-dev  instead of  rg-citz-<tenant>-dev
 # tenant_program_name = "pdt"
 
+# Optional owning ministry, if not the platform's (citz) - used in resource names:
+#   rg-for-<tenant>-dev  instead of  rg-citz-<tenant>-dev
+# Set once at onboarding; changing it later recreates every tenant resource.
+# tenant_ministry_code = "for"
+
 # NOTE: jumpbox access is NOT configured here. It is granted platform-wide via
 # jumpbox_principal_ids in params/global/platform-access.tfvars — see step 2b below.
 
@@ -196,6 +201,7 @@ Edit the tenant's `tenant.tfvars` for the relevant environment:
 create_dedicated_capacity = true
 dedicated_capacity_sku    = "F4"               # choose SKU
 fabric_capacity_admins    = ["admin@gov.bc.ca"]
+# dedicated_capacity_name = "fcforwfnonprod"   # optional - replaces the generated name; set once
 # fabric_capacity_name can be removed or left as null when using dedicated
 ```
 

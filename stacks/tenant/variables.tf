@@ -19,6 +19,17 @@ variable "tenant_program_name" {
   default     = null
 }
 
+variable "tenant_ministry_code" {
+  description = "Optional ministry code for the ministry that owns this tenant, e.g. \"for\". Replaces ministry_code in this tenant's own resource names (rg, kv, pe, fc) and its `ministry` tag. Leave null to use the platform's ministry_code. Does NOT affect the remote-state lookup, which always uses ministry_code. Every tenant resource name is ForceNew - changing this on an existing tenant destroys and recreates all of its resources."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.tenant_ministry_code == null || can(regex("^[a-z0-9]{2,4}$", var.tenant_ministry_code))
+    error_message = "tenant_ministry_code must be 2-4 lowercase alphanumeric characters (it appears in Key Vault names, which cap at 24 characters)."
+  }
+}
+
 variable "environment" {
   description = "Environment short name this tenant instance is deployed into."
   type        = string
@@ -97,8 +108,19 @@ variable "dedicated_capacity_sku" {
   default     = "F2"
 }
 
+variable "dedicated_capacity_name" {
+  description = "Optional Azure name for the dedicated capacity, replacing the generated fc<ministry><tenant>[<tenant_program>]<env>. Use when the generated name does not describe the capacity, e.g. \"fcforwfnonprod\" for a dev-homed capacity serving all of a tenant's non-prod work. Capacity name is ForceNew - set once at creation, never edit."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.dedicated_capacity_name == null || can(regex("^[a-z][a-z0-9]{2,62}$", var.dedicated_capacity_name))
+    error_message = "dedicated_capacity_name must be 3-63 characters, lowercase alphanumeric, starting with a letter."
+  }
+}
+
 variable "fabric_capacity_admins" {
-  description = "UPNs or object IDs of Fabric capacity administrators, when create_dedicated_capacity is true."
+  description = "UPNs of Fabric capacity administrators, when create_dedicated_capacity is true. Must be UPNs, not object IDs - see modules/fabric-capacity/variables.tf."
   type        = list(string)
   default     = []
 }

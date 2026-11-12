@@ -356,7 +356,7 @@ resources for one tenant in one environment:
 | Key Vault | `kv-<ministry>-<tenant>-[tenant_program-]<env>` | Private, RBAC-auth, in platform RG. Only if `create_key_vault = true` (the default) |
 | KV Private Endpoint | `pe-kv-<ministry>-<tenant>-[tenant_program-]<env>` | Into shared `snet-pe`. Created and removed together with the Key Vault |
 | Workspace RG | `rg-<ministry>-<tenant>-[tenant_program-]<env>-ws` | Empty; tenant team gets Contributor |
-| Dedicated Fabric capacity | `fc-<ministry>-<tenant>-[tenant_program-]<env>` | Only if `create_dedicated_capacity = true` |
+| Dedicated Fabric capacity | `fc-<ministry>-<tenant>-[tenant_program-]<env>` | Only if `create_dedicated_capacity = true`. `dedicated_capacity_name` overrides the name |
 | Jumpbox VM Login | *(role assignment on shared VM)* | Grants `Virtual Machine User Login` to `workspace_owners_group_object_id` on the shared Bastion jumpbox so the tenant team can tunnel to their private endpoints. VM managed in `bcgov/eo-dmi-alz-bastion-jumpbox`; VM ID supplied via `jumpbox_vm_id` in `params/<env>/shared.tfvars`. **Temporarily commented out** in `stacks/tenant/main.tf` — requires `stacks/bootstrap/identity` to be re-applied with the `jumpbox_rbac_admin` assignments first (see §8b and §10 Step 4 note). |
 
 `tenant_program_name` (the optional `[tenant_program-]` segment) is set
@@ -433,6 +433,7 @@ The onboarding record for one tenant in one environment. Contains:
 |---|---|
 | `tenant_name` | Short identifier (used in all resource names) |
 | `tenant_program_name` | *(optional)* Sub-program segment added to every resource name if set — see [Naming conventions](#6-naming-conventions) |
+| `tenant_ministry_code` | *(optional)* Owning ministry, e.g. `"for"`, used in place of `ministry_code` in this tenant's resource names and `ministry` tag. Set once at onboarding — changing it recreates every tenant resource |
 | `environment` | Must match the directory env |
 | `workspace_owners_group_object_id` | Entra ID group object ID for the tenant's workspace RG |
 | `create_key_vault` | *(optional, default `true`)* `false` skips the Key Vault and its private endpoint — RG + capacity only. Turning it on later is safe; turning it off destroys the vault (purge protection keeps the name reserved for 90 days) |
@@ -440,6 +441,7 @@ The onboarding record for one tenant in one environment. Contains:
 | `create_dedicated_capacity` | `true` to create a dedicated Fabric capacity; `false` to use shared |
 | `fabric_capacity_name` | Logical key from `fabric-capacities.yaml` when using shared (e.g. `"shared-cross-env"`, not the Azure resource name) |
 | `dedicated_capacity_sku` | Fabric SKU if `create_dedicated_capacity = true` |
+| `dedicated_capacity_name` | *(optional)* Azure name for the dedicated capacity, replacing the generated one. ForceNew — set once |
 | `fabric_capacity_admins` | Admin UPNs/object IDs for a dedicated capacity |
 | `tags` | Tenant-specific tags (at minimum `{ tenant = "<name>" }`) |
 
@@ -494,7 +496,7 @@ fills the 2nd/3rd slot depends on whether the resource is **platform-level**
 | Segment | Platform-level meaning | Tenant-level meaning |
 |---|---|---|
 | `resource-type` | Short Azure resource-type prefix (`rg`, `kv`, `pe`, `fc`, `uami`, `st`) | same |
-| `ministry` | BC Gov ministry code, e.g. `citz` | same |
+| `ministry` | BC Gov ministry code, e.g. `citz` | The owning ministry from `tenant_ministry_code` if set (e.g. `for`), otherwise the platform's `ministry_code` |
 | 2nd segment | `program` — the Fabric platform's own program code, e.g. `pmt` (constant across the whole repo) | `tenant_name` — the tenant's own identifier, e.g. `pmt` (a tenant can coincidentally share its name with the platform's program code - they're unrelated values) |
 | 3rd segment | `subprogram` — *(optional)* a fixed functional label (`tfstate`, `identity`, `shared`) | `tenant_program_name` — *(optional)* the tenant's own sub-program, e.g. `pdt` |
 | `environment` | `tools`/`dev`/`test`/`prod`, omitted if global | same |
@@ -515,10 +517,13 @@ rg-citz-wma-dev     # platform RG for tenant "wma", dev
 ```
 
 `ministry_code` and `program_code` are platform-wide constants — used for
-every **platform-level** resource name, and still required by `stacks/tenant`
-solely to locate `stacks/shared`'s remote state (see
-[`stacks/tenant/locals.tf`](../stacks/tenant/locals.tf) — not used in a
-tenant's own resource names). They are supplied as Terraform variables, sourced from:
+every **platform-level** resource name. `stacks/tenant` also uses them to
+locate `stacks/shared`'s remote state (see
+[`stacks/tenant/locals.tf`](../stacks/tenant/locals.tf)); `program_code` never
+appears in a tenant's own resource names. `ministry_code` does, unless the
+tenant sets `tenant_ministry_code` for the ministry that owns it — e.g. `for`
+for a Ministry of Forests tenant gives `rg-for-wf-dev`. The remote-state lookup
+always uses `ministry_code`, whatever the tenant sets. They are supplied as Terraform variables, sourced from:
 
 - `params/<env>/shared.tfvars` and every tenant/shared stack run
 - `params/bootstrap/*.tfvars` for the bootstrap stacks
@@ -554,7 +559,7 @@ total with no hyphens.
 | Tenant workspace RG | `rg-<ministry>-<tenant>-[tenant_program-]<env>-ws` | `rg-citz-pmt-dev-ws` |
 | Key Vault | `kv-<ministry>-<tenant>-[tenant_program-]<env>` | `kv-citz-pmt-dev` |
 | KV private endpoint | `pe-kv-<ministry>-<tenant>-[tenant_program-]<env>` | `pe-kv-citz-pmt-dev` |
-| Dedicated capacity | `fc-<ministry>-<tenant>-[tenant_program-]<env>` | `fc-citz-pmt-dev` |
+| Dedicated capacity | `fc-<ministry>-<tenant>-[tenant_program-]<env>`, or `dedicated_capacity_name` if set | `fc-citz-pmt-dev` |
 | State key (tenant) | `tenant/<tenant>.tfstate` | `tenant/pmt.tfstate` |
 | State key (shared) | `shared/<env>.tfstate` | `shared/tools.tfstate` |
 
@@ -794,6 +799,11 @@ environment = "dev"
 # conventions): rg-<ministry>-<tenant>-<tenant_program_name>-dev
 # tenant_program_name = "pdt"
 
+# Optional owning ministry, if not the platform's (citz) - used in resource names:
+#   rg-for-<tenant>-dev  instead of  rg-citz-<tenant>-dev
+# Set once at onboarding; changing it later recreates every tenant resource.
+# tenant_ministry_code = "for"
+
 # Object ID of the Entra ID group that owns this tenant's resources.
 # The group must already exist — this repo does not create Entra ID groups.
 workspace_owners_group_object_id = "<object-id>"
@@ -887,6 +897,7 @@ Edit the tenant's `tenant.tfvars` for the relevant environment:
 create_dedicated_capacity = true
 dedicated_capacity_sku    = "F4"               # choose the right SKU
 fabric_capacity_admins    = ["admin@gov.bc.ca"]
+# dedicated_capacity_name = "fcforwfnonprod"   # optional - replaces the generated name; set once
 # fabric_capacity_name can be removed or left as null when using dedicated
 ```
 

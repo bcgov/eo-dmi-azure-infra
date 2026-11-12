@@ -1,7 +1,7 @@
 module "platform_rg" {
   source = "../../modules/tenant-platform-rg"
 
-  ministry_code       = var.ministry_code
+  ministry_code       = local.tenant_ministry
   tenant_name         = var.tenant_name
   tenant_program_name = var.tenant_program_name
   environment         = var.environment
@@ -14,7 +14,7 @@ module "key_vault" {
 
   source = "../../modules/key-vault"
 
-  name                = "kv-${var.ministry_code}-${local.tenant_segment}-${var.environment}"
+  name                = "kv-${local.tenant_ministry}-${local.tenant_segment}-${var.environment}"
   resource_group_name = module.platform_rg.name
   location            = var.location
   tenant_id           = var.azure_tenant_id
@@ -28,7 +28,7 @@ module "key_vault_private_endpoint" {
 
   source = "../../modules/private-endpoint"
 
-  name                 = "pe-kv-${var.ministry_code}-${local.tenant_segment}-${var.environment}"
+  name                 = "pe-kv-${local.tenant_ministry}-${local.tenant_segment}-${var.environment}"
   resource_group_name  = module.platform_rg.name
   location             = var.location
   subnet_id            = var.pe_subnet_id
@@ -58,7 +58,8 @@ module "dedicated_fabric_capacity" {
   source = "../../modules/fabric-capacity"
 
   # Fabric capacity names allow lowercase alphanumeric only (no hyphens).
-  name                  = replace("fc${var.ministry_code}${local.tenant_segment}${var.environment}", "-", "")
+  # dedicated_capacity_name, if set, replaces the generated name outright.
+  name                  = coalesce(var.dedicated_capacity_name, replace("fc${local.tenant_ministry}${local.tenant_segment}${var.environment}", "-", ""))
   resource_group_name   = module.platform_rg.name
   location              = var.location
   sku_name              = var.dedicated_capacity_sku

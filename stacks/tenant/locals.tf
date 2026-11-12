@@ -8,9 +8,14 @@ locals {
   # deploy.yml passes shared.tfvars first, tenant.tfvars second), silently
   # dropping ministry/application from every tenant resource. Use tenant_tags
   # for anything extra - it merges instead of overriding.
+  #
+  # ministry follows tenant_ministry, so it matches the ministry segment in this
+  # tenant's resource names. For tenants without tenant_ministry_code it equals
+  # the platform ministry_code - the same value shared.tfvars already sets.
   all_tags = merge(
     var.tags,
     {
+      ministry    = local.tenant_ministry
       tenant      = var.tenant_name
       environment = var.environment
     },
@@ -21,6 +26,13 @@ locals {
   # for this tenant's own resources (NOT the platform-wide ministry-program
   # convention used below for the remote-state lookup). See
   # docs/platform-guide.md "Naming conventions".
+  #
+  # tenant_ministry fills the ministry segment of this tenant's own resource
+  # names: the owning ministry if tenant_ministry_code is set, otherwise the
+  # platform's ministry_code. The remote-state lookup below deliberately keeps
+  # var.ministry_code - state accounts belong to the platform, not the tenant.
+  tenant_ministry = coalesce(var.tenant_ministry_code, var.ministry_code)
+
   tenant_segment = var.tenant_program_name != null && var.tenant_program_name != "" ? "${var.tenant_name}-${var.tenant_program_name}" : var.tenant_name
 
   # try(...) falls back to {} when params/global/fabric-capacities.yaml has

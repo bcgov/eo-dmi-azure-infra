@@ -11,9 +11,10 @@
 #
 # Changes here trigger an automatic re-apply of stacks/platform-access via CI.
 jumpbox_principal_ids = [
-  "c2c84491-e623-4f89-b6be-7e36bff00374", # jakia
-  "8ec30563-1186-4a45-94d4-a7f8403924e7", # wei
-  "acc400f6-00af-4401-8720-9fa3770b1845", # krishna
+  "c2c84491-e623-4f89-b6be-7e36bff00374", # jakia (pmt)
+  "8ec30563-1186-4a45-94d4-a7f8403924e7", # wei (pmt)
+  "acc400f6-00af-4401-8720-9fa3770b1845", # krishna (dap)
   "8a0af36a-54cd-4432-8a5e-3a2b55209eae", # sree (bcts)
+  "38015b5c-19d9-411f-aa25-64720162a95a", # thomas (corp-fih)
+  "4f230786-445d-45d3-8782-cdb4ff8c62fd", # jaskirat (corp-fih)
 ]
-

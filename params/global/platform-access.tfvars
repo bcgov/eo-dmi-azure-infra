@@ -16,5 +16,5 @@ jumpbox_principal_ids = [
   "acc400f6-00af-4401-8720-9fa3770b1845", # krishna (dap)
   "8a0af36a-54cd-4432-8a5e-3a2b55209eae", # sree (bcts)
   "38015b5c-19d9-411f-aa25-64720162a95a", # thomas (corp-fih)
-  "4f230786-445d-45d3-8782-cdb4ff8c62fd" # jaskirat (corp-fih)
+  "4f230786-445d-45d3-8782-cdb4ff8c62fd", # jaskirat (corp-fih)
 ]
